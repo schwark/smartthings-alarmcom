@@ -105,16 +105,16 @@ private def runCommand(command, browserSession=[:]) {
 	browserSession.referer = params.uri
 	params.query = [
 				'ctl00$ContentPlaceHolder1$txtLogin': settings.username,
-			  	'ctl00$ContentPlaceHolder1$txtPassword': settings.password
+			  	'ctl00$ContentPlaceHolder1$txtPassword': settings.password,
+			  	'__VIEWSTATEGENERATOR':'','__EVENTTARGET':'','__EVENTARGUMENT':'','__VIEWSTATEENCRYPTED':'','__EVENTVALIDATION':'','__VIEWSTATE':''
 			 ]
-	browserSession.vars = ['__VIEWSTATEENCRYPTED':'','__EVENTVALIDATION':'','__VIEWSTATE':'']
-	navigateUrl(params, browserSession) {response, bSession, body ->
+	navigateUrl(params, browserSession) {response, bSession ->
 	}
 	params.uri = 'https://www.alarm.com/pda/${pda}/main.aspx'
 	params.method = 'post'
 	browserSession.referer = params.uri
-	params.query = COMMANDS[command]['params']
-	navigateUrl(params, browserSession) {response, bSession, body ->
+	params.query = COMMANDS[command]['params'] +  ['__VIEWSTATEENCRYPTED':'','__EVENTVALIDATION':'','__VIEWSTATE':'']
+	navigateUrl(params, browserSession) {response, bSession ->
 	}
 
 	return browserSession
@@ -139,28 +139,50 @@ private def getPatternValue(html, browserSession, kind, variable, pattern=null) 
 	return value
 }
 
+private def visitNodes(node, processor) {
+	def stack = [node]
+	
+    def current = null
+	while(stack && (current = stack.pop())) {
+		if(processor) {
+			if(processor(current)) return
+		}
+        if(current instanceof groovy.util.slurpersupport.Node) {
+			current.children().each {
+				stack.add(0,it)
+			}
+        }
+	}
+}
+
 private def extractSession(response, browserSession) {
 	log.debug("extracting session variables..")
 	def count = 1
 	def html = response.data
-    //log.debug("html is ${html}")
-
-	['vars','state'].each { kind ->
-	    browserSession[kind].each() { name, value ->
-	  		if('vars' == kind && name) { // use node search for vars
-				def foundNode = html.find { it.@name == name }
-                def foundValue = foundNode ? foundNode.@value : null
-				if(foundValue) {
-					browserSession[kind][name] = foundValue
-					log.debug "found form value ${foundValue} for ${name}"
+    
+    browserSession.state.each { name, value ->
+    	getPatternValue(html, browserSession, 'state', name)
+    }
+    
+    visitNodes(html[0]) {
+    	if(it instanceof groovy.util.slurpersupport.Node && it.name == 'INPUT') {
+        	def attr = it.attributes()
+            if(attr) {
+            	def name = attr['name']
+                if(name) {
+					def value = attr['value'] ? attr['value'] : ''
+	    			browserSession.vars.each() { n, v ->
+						if(name == n) {
+                        	browserSession.vars[name] = value
+							log.debug "found form value ${value} for ${name}"
+                        }
+					}
 				}
-			}
-			if('state' == kind && name) {
-				getPatternValue(html, browserSession, kind, name)
-			}
-		}
-	}
-
+            }
+        }
+        return false
+    }
+    
 	return browserSession
 }
 
@@ -200,10 +222,12 @@ private def navigateUrl(params, browserSession, processor=null) {
             log.debug("using cookies ${params.headers['Cookie']}")
 		}
 		if(browserSession.vars) {
-			params.query = (params.query ? params.query : [:]) + browserSession.vars
-			log.debug("using params: ${params.query}")
+			params.query = (params.query ? params.query : [:])
+			params.query.each {name, value ->
+				if(!params[name] && browserSession.vars[name]) params[name] = browserSession.vars[name]
+			}
 		}
-        
+		log.debug("using params: ${params.query}")
 		try {
 			if(params.method == 'post') {
 				httpPost(params, success)
