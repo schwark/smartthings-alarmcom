@@ -18,6 +18,8 @@ definition(
 preferences {
 	input("username", "string", title:"Username", description: "Please enter your Alarm.com username", required: true, displayDuringSetup: true)
 	input("password", "password", title:"Password", description: "Please enter your Alarm.com password", required: true, displayDuringSetup: true)
+	input("silent", "bool", title:"Use Silent Arming", description: "Arm Silently without warning beeps", required: false, displayDuringSetup: true, defaultValue: true )
+	input("nodelay", "bool", title:"Use No Delay", description: "Arm WITHOUT typical arm delay to allow entry of house", required: false, displayDuringSetup: true, defaultValue: false )
 }
 
 /////////////////////////////////////
@@ -74,8 +76,8 @@ private def parseEventMessage(String description) {
 
 private def getCommands() {
 	def COMMANDS = [
-					'ARMSTAY': ['params': ['ctl00$phBody$butArmStay':'Arm Stay', 'ctl00$phBody$cbArmOptionSilent': 'on'], 'name': 'Arm Stay'],
-					'ARMAWAY': ['params': ['ctl00$phBody$butArmAway':'Arm Away', 'ctl00$phBody$cbArmOptionSilent': 'on'], 'name': 'Arm Away']
+					'ARMSTAY': ['params': ['ctl00$phBody$butArmStay':'Arm Stay', 'ctl00$phBody$cbArmOptionSilent': settings.silent?'on':'', 'ctl00$phBody$cbArmOptionNoEntryDelay': settings.nodelay?'on':''], 'name': 'Arm Stay'],
+					'ARMAWAY': ['params': ['ctl00$phBody$butArmAway':'Arm Away', 'ctl00$phBody$cbArmOptionSilent': settings.silent?'on':'', 'ctl00$phBody$cbArmOptionNoEntryDelay': settings.nodelay?'on':''], 'name': 'Arm Away']
 				   ]
 
 	return COMMANDS
