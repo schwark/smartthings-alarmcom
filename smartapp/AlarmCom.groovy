@@ -81,13 +81,6 @@ private def getCommands() {
 	return COMMANDS
 }
 
-private def getVarPattern(key=null) {
-   def VARPATTERNS = [
-   						'pda': /(?ms)pda\/([^\/]+)/
-   					 ]
-   return key ? VARPATTERNS[key] : VARPATTERNS
-}
-
 private def toQueryString(Map m)
 {
 	return m.collect { k, v -> "${k}=${URLEncoder.encode(v.toString())}" }.sort().join("&")
@@ -96,7 +89,7 @@ private def toQueryString(Map m)
 private def getRecipe(command) {
 	def COMMANDS = getCommands()
 	def STEPS = [
-			['name': 'initlogin', 'uri': 'https://www.alarm.com/pda/'],
+			['name': 'initlogin', 'uri': 'https://www.alarm.com/pda/', 'state': ['pda': /(?ms)pda\/([^\/]+)/]],
 			['name': 'login', 'uri': 'https://www.alarm.com/pda/${pda}/default.aspx', 'method':'post', 'variables':[
 			  	'__VIEWSTATE':'',
 			  	'__VIEWSTATEGENERATOR':'',
@@ -112,7 +105,6 @@ private def getRecipe(command) {
 }
 
 private def runCommand(command, browserSession=[:]) {
-	browserSession.state = ['pda':'']
 	browserSession.vars = ['__VIEWSTATEGENERATOR':'','__EVENTVALIDATION':'','__VIEWSTATE':'']
 
 	navigateUrl(getRecipe(command), browserSession)
@@ -122,8 +114,7 @@ private def runCommand(command, browserSession=[:]) {
 
 private def getPatternValue(html, browserSession, kind, variable, pattern=null) {
 	if(!pattern) {
-        pattern = getVarPattern(variable)
-        if(!pattern) pattern = /(?ms)name="${variable}".*?value="([^"]*)"/
+        pattern = /(?ms)name="${variable}".*?value="([^"]*)"/
     }
 	//log.debug("looking for values with pattern ${pattern} for ${variable}")
 	def value = null
@@ -155,14 +146,16 @@ private def visitNodes(node, processor) {
 	}
 }
 
-private def extractSession(response, browserSession) {
+private def extractSession(params, response, browserSession) {
 	//log.debug("extracting session variables..")
 	def count = 1
 	def html = response.data
     
-    browserSession.state.each { name, value ->
-    	getPatternValue(html, browserSession, 'state', name)
-    }
+    if(params.state) {
+    	params.state.each { name, pattern ->
+    		getPatternValue(html, browserSession, 'state', name, pattern)
+    	}
+	}
 
     browserSession.vars.each() { n, v ->
     	browserSession.vars[n] = ''
@@ -207,7 +200,7 @@ private def navigateUrl(recipe, browserSession) {
     	}
 
     	if(response.status == 200) {
-			extractSession(response, browserSession)
+			extractSession(params, response, browserSession)
 	    	if(params.processor) params.processor(response, browserSession)
 	    	if(params.expect) {
 	    		log.debug((response.data =~ params.expect) ? "${params.name} is successful" : "${params.name} has failed")
