@@ -90,32 +90,28 @@ private def getVarPattern(key=null) {
    return key ? VARPATTERNS[key] : VARPATTERNS
 }
 
-private def runCommand(command, browserSession=[:]) {
+private def getRecipe(command) {
 	def COMMANDS = getCommands()
-	if(!COMMANDS[command]) return
-
-	def params = [:]
-	browserSession.state = ['pda':'']
-	browserSession.vars = ['__VIEWSTATEGENERATOR':'','__EVENTTARGET':'','__EVENTARGUMENT':'','__VIEWSTATEENCRYPTED':'','__EVENTVALIDATION':'','__VIEWSTATE':'']
-	params.uri = 'https://www.alarm.com/pda/'
-	navigateUrl(params, browserSession)
-	params.uri = 'https://www.alarm.com/pda/${pda}/default.aspx'
-	navigateUrl(params, browserSession)
-	params.method = 'post'
-	browserSession.referer = params.uri
-	params.query = [
+	def STEPS = [
+			['name': 'prelogin 1', 'uri': 'https://www.alarm.com/pda/'],
+			['name': 'prelogin 2', 'uri': 'https://www.alarm.com/pda/${pda}/default.aspx'],
+			['name': 'login', 'uri': 'https://www.alarm.com/pda/${pda}/default.aspx', 'method':'post', 'query':[
+			  	'__VIEWSTATE':'','__VIEWSTATEGENERATOR':'','__EVENTTARGET':'','__EVENTARGUMENT':'','__VIEWSTATEENCRYPTED':'','__EVENTVALIDATION':'',
 				'ctl00$ContentPlaceHolder1$txtLogin': settings.username,
 			  	'ctl00$ContentPlaceHolder1$txtPassword': settings.password,
-			  	'__VIEWSTATEGENERATOR':'','__EVENTTARGET':'','__EVENTARGUMENT':'','__VIEWSTATEENCRYPTED':'','__EVENTVALIDATION':'','__VIEWSTATE':''
-			 ]
-	navigateUrl(params, browserSession) {response, bSession ->
-	}
-	params.uri = 'https://www.alarm.com/pda/${pda}/main.aspx'
-	params.method = 'post'
-	browserSession.referer = params.uri
-	params.query = COMMANDS[command]['params'] +  ['__VIEWSTATEENCRYPTED':'','__EVENTVALIDATION':'','__VIEWSTATE':'']
-	navigateUrl(params, browserSession) {response, bSession ->
-	}
+			  	'ctl00$ContentPlaceHolder1$btnLogin':'Login',
+			 ], 'expect': /(?ms)Send a command to your system/ ],
+			 ['name': command, 'uri': 'https://www.alarm.com/pda/${pda}/main.aspx', 'method':'post', 'query': ['__VIEWSTATE':'','__VIEWSTATEENCRYPTED':'','__EVENTVALIDATION':''] + COMMANDS[command]['params'], 'expect': /(?ms)The command should take effect/]
+	]
+
+	return STEPS.reverse()
+}
+
+private def runCommand(command, browserSession=[:]) {
+	browserSession.state = ['pda':'']
+	browserSession.vars = ['__VIEWSTATEGENERATOR':'','__EVENTTARGET':'','__EVENTARGUMENT':'','__VIEWSTATEENCRYPTED':'','__EVENTVALIDATION':'','__VIEWSTATE':'']
+
+	navigateUrl(getRecipe(command), browserSession)
 
 	return browserSession
 }
@@ -125,13 +121,13 @@ private def getPatternValue(html, browserSession, kind, variable, pattern=null) 
         pattern = getVarPattern(variable)
         if(!pattern) pattern = /(?ms)name="${variable}".*?value="([^"]*)"/
     }
-	log.debug("looking for values with pattern ${pattern} for ${variable}")
+	//log.debug("looking for values with pattern ${pattern} for ${variable}")
 	def value = null
 	if(html) {
 		if(!browserSession[kind]) browserSession[kind] = [:]
 		def group = (html =~ pattern)
 		if(group) {
-			log.debug "found variable value ${group[0][1]} for ${variable}"
+			//log.debug "found variable value ${group[0][1]} for ${variable}"
 			value = group[0][1]
 			browserSession[kind][variable] = value
 		}
@@ -156,14 +152,18 @@ private def visitNodes(node, processor) {
 }
 
 private def extractSession(response, browserSession) {
-	log.debug("extracting session variables..")
+	//log.debug("extracting session variables..")
 	def count = 1
 	def html = response.data
     
     browserSession.state.each { name, value ->
     	getPatternValue(html, browserSession, 'state', name)
     }
-    
+
+    browserSession.vars.each() { n, v ->
+    	browserSession.vars[n] = ''
+    }
+        
     visitNodes(html[0]) {
     	if(it instanceof groovy.util.slurpersupport.Node && it.name == 'INPUT') {
         	def attr = it.attributes()
@@ -174,7 +174,7 @@ private def extractSession(response, browserSession) {
 	    			browserSession.vars.each() { n, v ->
 						if(name == n) {
                         	browserSession.vars[name] = value
-							log.debug "found form value ${value} for ${name}"
+							//log.debug "found form value ${value} for ${name}"
                         }
 					}
 				}
@@ -192,9 +192,10 @@ private def fillTemplate(template, map) {
 	return result
 }
 
-private def navigateUrl(params, browserSession, processor=null) {
+private def navigateUrl(recipe, browserSession) {
+    def params = recipe.pop()
+
 	def success = { response ->
-    	log.debug "Request was successful.. processing cookies"
     	log.trace("response status is ${response.status}")
 
     	browserSession.cookies = !browserSession.get('cookies') ? [] : browserSession.cookies
@@ -205,29 +206,46 @@ private def navigateUrl(params, browserSession, processor=null) {
 
     	if(response.status == 200) {
 			extractSession(response, browserSession)
-	    	if(processor) processor(response, browserSession)
+	    	if(params.processor) params.processor(response, browserSession)
+	    	if(params.expect) {
+	    		log.debug((response.data =~ params.expect) ? "${params.name} is successful" : "${params.name} has failed")
+	    	}
+	    } else if(response.status == 302) {
+	    	response.headerIterator('Location').each {
+    			def location = params.uri.toURI().resolve(it.value).toString()
+    			log.debug "redirecting on 302 to: ${location}"
+    			recipe.push(['name': "${params.name} redirect", 'uri': location, 'expect': params.expect, 'processor': params.processor])
+    		}
 	    }
+
+		if(recipe) {
+			recipe[-1].referer = params.uri
+			navigateUrl(recipe, browserSession)
+		}
 
 	    return browserSession
     }
 
 	if(params.uri) {
 		params.uri = fillTemplate(params.uri, browserSession.vars + browserSession.state)
-		log.debug("navigating to ${params.uri}...")
         if(!params.headers) params.headers = [:]
-		params.headers['User-Agent'] = 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36'
+		params.headers['Host'] = params.uri.toURI().host
+		params.headers['User-Agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36'
+		params.headers['Accept'] = 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+		params.headers['Accept-Language'] = 'en-US,en;q=0.5'
+		params.headers['Upgrade-Insecure-Requests'] = 1
+
 		if(browserSession.referer) params.headers['Referer'] = browserSession.referer
 		if(browserSession.cookies) {
 			params.headers['Cookie'] = browserSession.cookies.join(";")
-            log.debug("using cookies ${params.headers['Cookie']}")
 		}
 		if(browserSession.vars) {
 			params.query = (params.query ? params.query : [:])
 			params.query.each {name, value ->
-				if(!params[name] && browserSession.vars[name]) params[name] = browserSession.vars[name]
+				if(!value && browserSession.vars[name]) params.query[name] = browserSession.vars[name]
 			}
 		}
-		log.debug("using params: ${params.query}")
+		log.debug("navigating to ${params.uri} and method: ${params.method} and headers ${params.headers} and using params: ${params.query}")
 		try {
 			if(params.method == 'post') {
 				httpPost(params, success)
