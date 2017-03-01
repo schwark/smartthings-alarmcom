@@ -18,8 +18,6 @@ definition(
 preferences {
 	input("username", "string", title:"Username", description: "Please enter your Alarm.com username", required: true, displayDuringSetup: true)
 	input("password", "password", title:"Password", description: "Please enter your Alarm.com password", required: true, displayDuringSetup: true)
-	input("addArmStay", "bool", title:"Do you want to add Arm Stay as a Switch?", description: "Turning this on will add one switch Arm Stay of your Alarm", required: false, displayDuringSetup: true, defaultValue: true )
-	input("addArmAway", "bool", title:"Do you want to add Arm Away as a Switch?", description: "Turning this on will add one switch Arm Away of your Alarm", required: false, displayDuringSetup: true, defaultValue: true )
 }
 
 /////////////////////////////////////
@@ -93,14 +91,18 @@ private def getVarPattern(key=null) {
 private def getRecipe(command) {
 	def COMMANDS = getCommands()
 	def STEPS = [
-			['name': 'prelogin 1', 'uri': 'https://www.alarm.com/pda/'],
-			['name': 'prelogin 2', 'uri': 'https://www.alarm.com/pda/${pda}/default.aspx'],
-			['name': 'login', 'uri': 'https://www.alarm.com/pda/${pda}/default.aspx', 'method':'post', 'query':[
-			  	'__VIEWSTATE':'','__VIEWSTATEGENERATOR':'','__EVENTTARGET':'','__EVENTARGUMENT':'','__VIEWSTATEENCRYPTED':'','__EVENTVALIDATION':'',
+			['name': 'initlogin', 'uri': 'https://www.alarm.com/pda/'],
+			['name': 'prelogin', 'uri': 'https://www.alarm.com/pda/${pda}/default.aspx', 'method':'post', 'headers':['Origin':'https://www.alarm.com'], 'query':[
 				'ctl00$ContentPlaceHolder1$txtLogin': settings.username,
 			  	'ctl00$ContentPlaceHolder1$txtPassword': settings.password,
 			  	'ctl00$ContentPlaceHolder1$btnLogin':'Login',
-			 ], 'expect': /(?ms)Send a command to your system/ ],
+			 ], 'referer': 'self' ],
+			['name': 'login', 'uri': 'https://www.alarm.com/pda/${pda}/default.aspx', 'method':'post', 'headers':['Origin':'https://www.alarm.com'], 'query':[
+			  	'__VIEWSTATE':'','__VIEWSTATEGENERATOR':'','__EVENTVALIDATION':'',
+				'ctl00$ContentPlaceHolder1$txtLogin': settings.username,
+			  	'ctl00$ContentPlaceHolder1$txtPassword': settings.password,
+			  	'ctl00$ContentPlaceHolder1$btnLogin':'Login',
+			 ], 'expect': /(?ms)Send a command to your system/, 'referer': 'self' ],
 			 ['name': command, 'uri': 'https://www.alarm.com/pda/${pda}/main.aspx', 'method':'post', 'query': ['__VIEWSTATE':'','__VIEWSTATEENCRYPTED':'','__EVENTVALIDATION':''] + COMMANDS[command]['params'], 'expect': /(?ms)The command should take effect/]
 	]
 
@@ -109,7 +111,7 @@ private def getRecipe(command) {
 
 private def runCommand(command, browserSession=[:]) {
 	browserSession.state = ['pda':'']
-	browserSession.vars = ['__VIEWSTATEGENERATOR':'','__EVENTTARGET':'','__EVENTARGUMENT':'','__VIEWSTATEENCRYPTED':'','__EVENTVALIDATION':'','__VIEWSTATE':'']
+	browserSession.vars = ['__VIEWSTATEGENERATOR':'','__EVENTVALIDATION':'','__VIEWSTATE':'']
 
 	navigateUrl(getRecipe(command), browserSession)
 
@@ -219,7 +221,7 @@ private def navigateUrl(recipe, browserSession) {
 	    }
 
 		if(recipe) {
-			recipe[-1].referer = params.uri
+			if(!recipe[-1].referer) recipe[-1].referer = params.uri
 			navigateUrl(recipe, browserSession)
 		}
 
@@ -229,13 +231,14 @@ private def navigateUrl(recipe, browserSession) {
 	if(params.uri) {
 		params.uri = fillTemplate(params.uri, browserSession.vars + browserSession.state)
         if(!params.headers) params.headers = [:]
-		params.headers['Host'] = params.uri.toURI().host
-		params.headers['User-Agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36'
+		if(!params.headers['Origin']) params.headers['Host'] = params.uri.toURI().host
+		params.headers['User-Agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.110 Safari/537.36'
 		params.headers['Accept'] = 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
 		params.headers['Accept-Language'] = 'en-US,en;q=0.5'
 		params.headers['Upgrade-Insecure-Requests'] = 1
 
-		if(browserSession.referer) params.headers['Referer'] = browserSession.referer
+		if(params.referer == 'self') params.referer = params.uri
+		if(params.referer) params.headers['Referer'] = params.referer
 		if(browserSession.cookies) {
 			params.headers['Cookie'] = browserSession.cookies.join(";")
 		}
@@ -252,7 +255,6 @@ private def navigateUrl(recipe, browserSession) {
 			} else {
 	    		httpGet(params,success)
    			}
-    		browserSession.referer = params.uri		
 		} catch (e) {
     			log.error "something went wrong: $e"
 		}
