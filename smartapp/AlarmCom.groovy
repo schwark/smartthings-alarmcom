@@ -222,6 +222,7 @@ private def navigateUrl(recipe, browserSession) {
     }
 
 	if(params.uri) {
+		if(!browserSession.state) browserSession.state = [:]
 		params.uri = fillTemplate(params.uri, browserSession.vars + browserSession.state)
         if(!params.headers) params.headers = [:]
 		if(!params.headers['Origin']) params.headers['Host'] = params.uri.toURI().host
