@@ -1,10 +1,10 @@
 # SmartThings Integration with alarm.com
 
 
- * Login to https://graph.api.smartthings.com/ with your smartthings username and password
+* Login to https://graph.api.smartthings.com/ with your smartthings username and password
 
- * Install the Smartapp as a SmartApp:
- ```
+* Install the Smartapp as a SmartApp:
+```
 Click on My SmartApps
 Click on New SmartApp
 Click on From Code
@@ -30,6 +30,6 @@ Type in your alarm.com username and password and Save
 Wait 10 minutes for the switches to show up in your Things
 ```
 
-One switch is created call '''Arm Away''' and one called '''Arm Stay'''
-Turning either of them on OR off will activate the corresponding Arm action
-For security purposes, Disarm does not have a switch
+* One switch is created call **Arm Away** and one called **Arm Stay**.
+* Turning either of them on OR off will activate the corresponding Arm action.
+* For security purposes, Disarm does not have a switch
