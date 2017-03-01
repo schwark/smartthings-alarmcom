@@ -74,8 +74,8 @@ private def parseEventMessage(String description) {
 
 private def getCommands() {
 	def COMMANDS = [
-					'ARMSTAY': ['params': ['ctl00$phBody$butArmStay':'Arm Stay'], 'name': 'Arm Stay'],
-					'ARMAWAY': ['params': ['ctl00$phBody$butArmAway':'Arm Away'], 'name': 'Arm Away']
+					'ARMSTAY': ['params': ['ctl00$phBody$butArmStay':'Arm Stay', 'ctl00$phBody$cbArmOptionSilent': 'on'], 'name': 'Arm Stay'],
+					'ARMAWAY': ['params': ['ctl00$phBody$butArmAway':'Arm Away', 'ctl00$phBody$cbArmOptionSilent': 'on'], 'name': 'Arm Away']
 				   ]
 
 	return COMMANDS
@@ -88,22 +88,24 @@ private def getVarPattern(key=null) {
    return key ? VARPATTERNS[key] : VARPATTERNS
 }
 
+private def toQueryString(Map m)
+{
+	return m.collect { k, v -> "${k}=${URLEncoder.encode(v.toString())}" }.sort().join("&")
+}
+
 private def getRecipe(command) {
 	def COMMANDS = getCommands()
 	def STEPS = [
 			['name': 'initlogin', 'uri': 'https://www.alarm.com/pda/'],
-			['name': 'prelogin', 'uri': 'https://www.alarm.com/pda/${pda}/default.aspx', 'method':'post', 'headers':['Origin':'https://www.alarm.com'], 'query':[
-				'ctl00$ContentPlaceHolder1$txtLogin': settings.username,
-			  	'ctl00$ContentPlaceHolder1$txtPassword': settings.password,
-			  	'ctl00$ContentPlaceHolder1$btnLogin':'Login',
-			 ], 'referer': 'self' ],
-			['name': 'login', 'uri': 'https://www.alarm.com/pda/${pda}/default.aspx', 'method':'post', 'headers':['Origin':'https://www.alarm.com'], 'query':[
-			  	'__VIEWSTATE':'','__VIEWSTATEGENERATOR':'','__EVENTVALIDATION':'',
+			['name': 'login', 'uri': 'https://www.alarm.com/pda/${pda}/default.aspx', 'method':'post', 'variables':[
+			  	'__VIEWSTATE':'',
+			  	'__VIEWSTATEGENERATOR':'',
+			  	'__EVENTVALIDATION':'',
 				'ctl00$ContentPlaceHolder1$txtLogin': settings.username,
 			  	'ctl00$ContentPlaceHolder1$txtPassword': settings.password,
 			  	'ctl00$ContentPlaceHolder1$btnLogin':'Login',
 			 ], 'expect': /(?ms)Send a command to your system/, 'referer': 'self' ],
-			 ['name': command, 'uri': 'https://www.alarm.com/pda/${pda}/main.aspx', 'method':'post', 'query': ['__VIEWSTATE':'','__VIEWSTATEENCRYPTED':'','__EVENTVALIDATION':''] + COMMANDS[command]['params'], 'expect': /(?ms)The command should take effect/]
+			 ['name': command, 'uri': 'https://www.alarm.com/pda/${pda}/main.aspx', 'method':'post', 'variables': ['__VIEWSTATE':'','__VIEWSTATEENCRYPTED':'','__EVENTVALIDATION':''] + COMMANDS[command]['params'], 'expect': /(?ms)The command should take effect/]
 	]
 
 	return STEPS.reverse()
@@ -173,11 +175,9 @@ private def extractSession(response, browserSession) {
             	def name = attr['name']
                 if(name) {
 					def value = attr['value'] ? attr['value'] : ''
-	    			browserSession.vars.each() { n, v ->
-						if(name == n) {
-                        	browserSession.vars[name] = value
-							//log.debug "found form value ${value} for ${name}"
-                        }
+					if(browserSession.vars.containsKey(name)) {
+						browserSession.vars[name] = value
+						//log.debug "found form value ${value} for ${name}"
 					}
 				}
             }
@@ -235,7 +235,6 @@ private def navigateUrl(recipe, browserSession) {
 		params.headers['User-Agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.110 Safari/537.36'
 		params.headers['Accept'] = 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
 		params.headers['Accept-Language'] = 'en-US,en;q=0.5'
-		params.headers['Upgrade-Insecure-Requests'] = 1
 
 		if(params.referer == 'self') params.referer = params.uri
 		if(params.referer) params.headers['Referer'] = params.referer
@@ -243,16 +242,18 @@ private def navigateUrl(recipe, browserSession) {
 			params.headers['Cookie'] = browserSession.cookies.join(";")
 		}
 		if(browserSession.vars) {
-			params.query = (params.query ? params.query : [:])
-			params.query.each {name, value ->
-				if(!value && browserSession.vars[name]) params.query[name] = browserSession.vars[name]
+			params.variables = (params.variables ? params.variables : [:])
+			params.variables.each {name, value ->
+				if(!value && browserSession.vars[name]) params.variables[name] = browserSession.vars[name]
 			}
 		}
-		log.debug("navigating to ${params.uri} and method: ${params.method} and headers ${params.headers} and using params: ${params.query}")
+		log.debug("navigating to ${params.uri} and method: ${params.method} and headers ${params.headers} and using params: ${params.variables}")
 		try {
 			if(params.method == 'post') {
+				if(params.variables) params.body = toQueryString(params.variables)
 				httpPost(params, success)
 			} else {
+				if(params.variables) params.query = params.variables
 	    		httpGet(params,success)
    			}
 		} catch (e) {
