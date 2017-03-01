@@ -30,6 +30,6 @@ Type in your alarm.com username and password and Save
 Wait 10 minutes for the switches to show up in your Things
 ```
 
-* One switch is created call **Arm Away** and one called **Arm Stay**.
+* Two switches will show up under Things: one switch is called **Arm Away** and one called **Arm Stay**.
 * Turning either of them on OR off will activate the corresponding Arm action.
 * For security purposes, Disarm does not have a switch
