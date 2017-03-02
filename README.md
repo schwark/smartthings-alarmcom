@@ -29,6 +29,7 @@ Scroll to very bottom and hit Add a SmartApp
 Scroll to very bottom and hit My Apps
 Click on Alarm.com
 Type in your alarm.com username and password and Save
+If you want a Disarm Switch also created, turn that option on - though it will make it easier to disarm your system (and I don't recommend it), especially if you integrate that switch with Alexa.
 Wait 10 minutes for the switches to show up in your Things
 If you would like to, customize the silent arming (default on) or no delay (default off) options on either of these switches
 ```
