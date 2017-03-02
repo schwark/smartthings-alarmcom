@@ -36,12 +36,14 @@ Customize the silent arming (default on) option on either switch
 Customize no entry delay (default off) option on either switch
 ```
 
-* Two switches will show up under Things: one switch is called **Arm Away** and one called **Arm Stay**.
-* Turning either of them on OR off will activate the corresponding Arm action.
-* CAUTION: For security purposes, Disarm does not have a switch by default
-* The smart app option allows you to create a Disarm button, but use at your own risk
-* It will make it easier to disarm your system, especially if you integrate that switch with Alexa
+Two switches will show up under Things: one switch is called **Arm Away** and one called **Arm Stay**. Turning either of them on OR off will activate the corresponding Arm action.
 
+* CAUTION: 
+```
+For security purposes, Disarm does not have a switch by default
+The smart app option allows you to create a Disarm button, but use at your own risk
+It will make it easier to disarm your system, especially if you integrate that switch with Alexa
+```
 
 * Upgrade process
 ```
