@@ -31,7 +31,9 @@ Click on Alarm.com
 Type in your alarm.com username and password and Save
 If you want a Disarm Switch also created, turn that option on - see CAUTION below.
 Wait 10 minutes for the switches to show up in your Things
-If you would like to, customize the silent arming (default on) or no delay (default off) options on either of these switches
+OPTIONAL:
+Customize the silent arming (default on) option on either switch
+Customize no entry delay (default off) option on either switch
 ```
 
 * Two switches will show up under Things: one switch is called **Arm Away** and one called **Arm Stay**.
