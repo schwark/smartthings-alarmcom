@@ -36,4 +36,23 @@ If you would like to, customize the silent arming (default on) or no delay (defa
 
 * Two switches will show up under Things: one switch is called **Arm Away** and one called **Arm Stay**.
 * Turning either of them on OR off will activate the corresponding Arm action.
-* For security purposes, Disarm does not have a switch
+* For security purposes, Disarm does not have a switch by default, but the smart app option allows you to create one
+
+
+* Upgrade process
+```
+If you are upgrading from a prior version of this smartapp, follow these steps:
+Remove the Switches from all automations, routines and smartapps (Alexa, Google Home for example)
+Uninstall the smartapp from your SmartThings mobile app
+Login to https://graph.api.smartthings.com/ with your smartthings username and password
+Click on My SmartApps
+Click on Alarm.com name
+Delete the existing code, and Cut and Paste the code into the code box
+Click Save and then Publish/For Me
+Click on My Device Handlers
+Click on Alarm.com Switch name
+Delete the existing code, and Cut and Paste the code into the code box
+Click Save and then Publish/For Me
+Go to you mobile app and reinstall the smartapp, and wait 10 minutes for the switches to show up again
+Re-add your switches to your automations, Alexa, etc.
+```
