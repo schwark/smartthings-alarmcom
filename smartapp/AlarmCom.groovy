@@ -77,7 +77,7 @@ private def getCommand(command, silent, nodelay) {
 	def COMMANDS = [
 					'ARMSTAY': ['params': ['ctl00$phBody$butArmStay':'Arm Stay', 'ctl00$phBody$cbArmOptionSilent': silent?'on':'', 'ctl00$phBody$cbArmOptionNoEntryDelay': nodelay?'on':''], 'name': 'Arm Stay'],
 					'ARMAWAY': ['params': ['ctl00$phBody$butArmAway':'Arm Away', 'ctl00$phBody$cbArmOptionSilent': silent?'on':'', 'ctl00$phBody$cbArmOptionNoEntryDelay': nodelay?'on':''], 'name': 'Arm Away'],
-					'DISARM': ['params': ['ctl00$phBody$butDisarm':'Disarm', 'ctl00$phBody$cbArmOptionSilent': silent?'on':'', 'ctl00$phBody$cbArmOptionNoEntryDelay': nodelay?'on':''], 'name': 'Arm Away']
+					'DISARM': ['params': ['ctl00$phBody$butDisarm':'Disarm', 'ctl00$phBody$cbArmOptionSilent': silent?'on':'', 'ctl00$phBody$cbArmOptionNoEntryDelay': nodelay?'on':''], 'name': 'Disarm']
 				   ]
 
 	return COMMANDS[command]
