@@ -18,8 +18,6 @@ definition(
 preferences {
 	input("username", "string", title:"Username", description: "Please enter your Alarm.com username", required: true, displayDuringSetup: true)
 	input("password", "password", title:"Password", description: "Please enter your Alarm.com password", required: true, displayDuringSetup: true)
-	input("silent", "bool", title:"Use Silent Arming", description: "Arm Silently without warning beeps", required: false, displayDuringSetup: true, defaultValue: true )
-	input("nodelay", "bool", title:"Use No Delay", description: "Arm WITHOUT typical arm delay to allow entry of house", required: false, displayDuringSetup: true, defaultValue: false )
 }
 
 /////////////////////////////////////
@@ -74,13 +72,13 @@ private def parseEventMessage(String description) {
 }
 
 
-private def getCommands() {
+private def getCommand(command, silent, nodelay) {
 	def COMMANDS = [
-					'ARMSTAY': ['params': ['ctl00$phBody$butArmStay':'Arm Stay', 'ctl00$phBody$cbArmOptionSilent': settings.silent?'on':'', 'ctl00$phBody$cbArmOptionNoEntryDelay': settings.nodelay?'on':''], 'name': 'Arm Stay'],
-					'ARMAWAY': ['params': ['ctl00$phBody$butArmAway':'Arm Away', 'ctl00$phBody$cbArmOptionSilent': settings.silent?'on':'', 'ctl00$phBody$cbArmOptionNoEntryDelay': settings.nodelay?'on':''], 'name': 'Arm Away']
+					'ARMSTAY': ['params': ['ctl00$phBody$butArmStay':'Arm Stay', 'ctl00$phBody$cbArmOptionSilent': silent?'on':'', 'ctl00$phBody$cbArmOptionNoEntryDelay': nodelay?'on':''], 'name': 'Arm Stay'],
+					'ARMAWAY': ['params': ['ctl00$phBody$butArmAway':'Arm Away', 'ctl00$phBody$cbArmOptionSilent': silent?'on':'', 'ctl00$phBody$cbArmOptionNoEntryDelay': nodelay?'on':''], 'name': 'Arm Away']
 				   ]
 
-	return COMMANDS
+	return COMMANDS[command]
 }
 
 private def toQueryString(Map m)
@@ -88,8 +86,8 @@ private def toQueryString(Map m)
 	return m.collect { k, v -> "${k}=${URLEncoder.encode(v.toString())}" }.sort().join("&")
 }
 
-private def getRecipe(command) {
-	def COMMANDS = getCommands()
+private def getRecipe(command, silent, nodelay) {
+	def COMMAND = getCommand(command, silent, nodelay)
 	def STEPS = [
 			['name': 'initlogin', 'uri': 'https://www.alarm.com/pda/', 'state': ['pda': /(?ms)pda\/([^\/]+)/]],
 			['name': 'login', 'uri': 'https://www.alarm.com/pda/${pda}/default.aspx', 'method':'post', 'variables':[
@@ -100,16 +98,16 @@ private def getRecipe(command) {
 			  	'ctl00$ContentPlaceHolder1$txtPassword': settings.password,
 			  	'ctl00$ContentPlaceHolder1$btnLogin':'Login',
 			 ], 'expect': /(?ms)Send a command to your system/, 'referer': 'self' ],
-			 ['name': command, 'uri': 'https://www.alarm.com/pda/${pda}/main.aspx', 'method':'post', 'variables': ['__VIEWSTATE':'','__VIEWSTATEENCRYPTED':'','__EVENTVALIDATION':''] + COMMANDS[command]['params'], 'expect': /(?ms)The command should take effect/]
+			 ['name': command, 'uri': 'https://www.alarm.com/pda/${pda}/main.aspx', 'method':'post', 'variables': ['__VIEWSTATE':'','__VIEWSTATEENCRYPTED':'','__EVENTVALIDATION':''] + COMMAND['params'], 'expect': /(?ms)The command should take effect/]
 	]
 
 	return STEPS.reverse()
 }
 
-private def runCommand(command, browserSession=[:]) {
+private def runCommand(command, silent, nodelay, browserSession=[:]) {
 	browserSession.vars = ['__VIEWSTATEGENERATOR':'','__EVENTVALIDATION':'','__VIEWSTATE':'']
 
-	navigateUrl(getRecipe(command), browserSession)
+	navigateUrl(getRecipe(command, silent, nodelay), browserSession)
 
 	return browserSession
 }

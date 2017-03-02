@@ -9,6 +9,7 @@ Click on My SmartApps
 Click on New SmartApp
 Click on From Code
 Cut and Paste the code from smartapp/AlarmCom.groovy in the big text field and click on Create!
+Click on Publish/For Me
 ```
 
 * Install the device as a custom device:
@@ -17,6 +18,7 @@ Click on My Device Handlers
 Click on New Device Handler
 Click on From Code
 Cut and Paste the code from devices/AlarmComSwitch.groovy in the big text field and click on Create!
+Click on Publish/For Me
 ```
 
  * Activate SmartApp in SmartThings Mobile App
@@ -28,6 +30,7 @@ Scroll to very bottom and hit My Apps
 Click on Alarm.com
 Type in your alarm.com username and password and Save
 Wait 10 minutes for the switches to show up in your Things
+If you would like to, customize the silent arming (default on) or no delay (default off) options on either of these switches
 ```
 
 * Two switches will show up under Things: one switch is called **Arm Away** and one called **Arm Stay**.
