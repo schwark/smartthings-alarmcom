@@ -73,14 +73,14 @@ private def parseEventMessage(String description) {
 }
 
 
-private def getCommand(command, silent, nodelay) {
+private def getCommand(command=null, silent=false, nodelay=false) {
 	def COMMANDS = [
 					'ARMSTAY': ['params': ['ctl00$phBody$butArmStay':'Arm Stay', 'ctl00$phBody$cbArmOptionSilent': silent?'on':'', 'ctl00$phBody$cbArmOptionNoEntryDelay': nodelay?'on':''], 'name': 'Arm Stay'],
 					'ARMAWAY': ['params': ['ctl00$phBody$butArmAway':'Arm Away', 'ctl00$phBody$cbArmOptionSilent': silent?'on':'', 'ctl00$phBody$cbArmOptionNoEntryDelay': nodelay?'on':''], 'name': 'Arm Away'],
 					'DISARM': ['params': ['ctl00$phBody$butDisarm':'Disarm', 'ctl00$phBody$cbArmOptionSilent': silent?'on':'', 'ctl00$phBody$cbArmOptionNoEntryDelay': nodelay?'on':''], 'name': 'Disarm']
 				   ]
 
-	return COMMANDS[command]
+	return command ? COMMANDS[command] : COMMANDS
 }
 
 private def toQueryString(Map m)
@@ -293,7 +293,7 @@ def createSwitches() {
 	log.debug("Creating Alarm.com Switches...")
 	if(state.childDevicesCreated) return
 
-	def COMMANDS = getCommands()
+	def COMMANDS = getCommand()
 	COMMANDS.each() { id, map ->
 		def name = map['name']
 		log.debug("processing switch ${id} with name ${name}")
