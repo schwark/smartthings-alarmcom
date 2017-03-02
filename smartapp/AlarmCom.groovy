@@ -18,6 +18,7 @@ definition(
 preferences {
 	input("username", "string", title:"Username", description: "Please enter your Alarm.com username", required: true, displayDuringSetup: true)
 	input("password", "password", title:"Password", description: "Please enter your Alarm.com password", required: true, displayDuringSetup: true)
+	input("disarm", "bool", title:"Add Disarm Switch as well", description: "Disarm button is only added if this is set to on", required: false, displayDuringSetup: true, defaultValue: false )
 }
 
 /////////////////////////////////////
@@ -75,7 +76,8 @@ private def parseEventMessage(String description) {
 private def getCommand(command, silent, nodelay) {
 	def COMMANDS = [
 					'ARMSTAY': ['params': ['ctl00$phBody$butArmStay':'Arm Stay', 'ctl00$phBody$cbArmOptionSilent': silent?'on':'', 'ctl00$phBody$cbArmOptionNoEntryDelay': nodelay?'on':''], 'name': 'Arm Stay'],
-					'ARMAWAY': ['params': ['ctl00$phBody$butArmAway':'Arm Away', 'ctl00$phBody$cbArmOptionSilent': silent?'on':'', 'ctl00$phBody$cbArmOptionNoEntryDelay': nodelay?'on':''], 'name': 'Arm Away']
+					'ARMAWAY': ['params': ['ctl00$phBody$butArmAway':'Arm Away', 'ctl00$phBody$cbArmOptionSilent': silent?'on':'', 'ctl00$phBody$cbArmOptionNoEntryDelay': nodelay?'on':''], 'name': 'Arm Away'],
+					'DISARM': ['params': ['ctl00$phBody$butDisarm':'Disarm', 'ctl00$phBody$cbArmOptionSilent': silent?'on':'', 'ctl00$phBody$cbArmOptionNoEntryDelay': nodelay?'on':''], 'name': 'Arm Away']
 				   ]
 
 	return COMMANDS[command]
@@ -297,9 +299,11 @@ def createSwitches() {
 		log.debug("processing switch ${id} with name ${name}")
 		def PREFIX = "ALARMCOM"
 		def hubId = getHubId()
-		def alarmSwitch = addChildDevice("schwark", "Alarm.com Switch", "${PREFIX}${id}", hubId, ["name": "AlarmCom.${id}", "label": "${name}", "completedSetup": true])
-		log.debug("created child device ${PREFIX}${id} with name ${name} and hub ${hubId}")
-		alarmSwitch.setCommand(id)
+		if(settings.disarm || id != "DISARM") {
+			def alarmSwitch = addChildDevice("schwark", "Alarm.com Switch", "${PREFIX}${id}", hubId, ["name": "AlarmCom.${id}", "label": "${name}", "completedSetup": true])
+			log.debug("created child device ${PREFIX}${id} with name ${name} and hub ${hubId}")
+			alarmSwitch.setCommand(id)
+		}
 	}
 	state.childDevicesCreated = true
 }
