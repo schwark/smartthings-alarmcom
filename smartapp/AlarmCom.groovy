@@ -77,7 +77,8 @@ private def getCommand(command=null, silent=false, nodelay=false) {
 	def COMMANDS = [
 					'ARMSTAY': ['params': ['ctl00$phBody$butArmStay':'Arm Stay', 'ctl00$phBody$cbArmOptionSilent': silent?'on':'', 'ctl00$phBody$cbArmOptionNoEntryDelay': nodelay?'on':''], 'name': 'Arm Stay', button: true],
 					'ARMAWAY': ['params': ['ctl00$phBody$butArmAway':'Arm Away', 'ctl00$phBody$cbArmOptionSilent': silent?'on':'', 'ctl00$phBody$cbArmOptionNoEntryDelay': nodelay?'on':''], 'name': 'Arm Away', button: true],
-					'DISARM': ['params': ['ctl00$phBody$butDisarm':'Disarm', 'ctl00$phBody$cbArmOptionSilent': silent?'on':'', 'ctl00$phBody$cbArmOptionNoEntryDelay': nodelay?'on':''], 'name': 'Disarm', button: settings.disarm]
+					'DISARM': ['params': ['ctl00$phBody$butDisarm':'Disarm', 'ctl00$phBody$cbArmOptionSilent': silent?'on':'', 'ctl00$phBody$cbArmOptionNoEntryDelay': nodelay?'on':''], 'name': 'Disarm', button: settings.disarm],
+					'STATUS': ['params': [], 'name': 'Status', button: false]
 				   ]
 
 	return command ? COMMANDS[command] : COMMANDS
@@ -91,7 +92,7 @@ private def toQueryString(Map m)
 private def getRecipe(command, silent, nodelay) {
 	def COMMAND = getCommand(command, silent, nodelay)
 	def STEPS = [
-			['name': 'initlogin', 'uri': 'https://www.alarm.com/pda/', 'state': ['pda': /(?ms)pda\/([^\/]+)/]],
+			['name': 'initlogin', 'uri': 'https://www.alarm.com/pda/', 'state': ['pda': ~/(?ms)pda\/([^\/]+)/]],
 			['name': 'login', 'uri': 'https://www.alarm.com/pda/${pda}/default.aspx', 'method':'post', 'variables':[
 			  	'__VIEWSTATE':'',
 			  	'__VIEWSTATEGENERATOR':'',
@@ -99,17 +100,45 @@ private def getRecipe(command, silent, nodelay) {
 				'ctl00$ContentPlaceHolder1$txtLogin': settings.username,
 			  	'ctl00$ContentPlaceHolder1$txtPassword': settings.password,
 			  	'ctl00$ContentPlaceHolder1$btnLogin':'Login',
-			 ], 'expect': /(?ms)Send a command to your system/, 'referer': 'self' ],
-			 ['name': command, 'uri': 'https://www.alarm.com/pda/${pda}/main.aspx', 'method':'post', 'variables': ['__VIEWSTATE':'','__VIEWSTATEENCRYPTED':'','__EVENTVALIDATION':''] + COMMAND['params'], 'expect': /(?ms)The command should take effect/]
+			 ], 'expect': /(?ms)Send a command to your system/, 'referer': 'self', 'state': ['status': "ctl00_phBody_lblArmingState.#text"] ],
+		     ['name': command, 'uri': 'https://www.alarm.com/pda/${pda}/main.aspx', 'method':'post', 'variables': ['__VIEWSTATE':'','__VIEWSTATEENCRYPTED':'','__EVENTVALIDATION':''] + COMMAND['params'], 'expect': /(?ms)The command should take effect/]
 	]
-
 	return STEPS.reverse()
 }
 
-private def runCommand(command, silent, nodelay, browserSession=[:]) {
+private def updateStatus(command, status) {
+	log.debug("updating status to ${status} on command ${command}")
+	def on = null
+	def id = ['Armed Stay': 'ARMSTAY', 'Armed Away': 'ARMAWAY', 'Disarmed': 'DISARM']
+	if('STATUS' == command && status) {
+		on = id[status] 
+	} else {
+		on = command
+	}
+	if(on) {
+		def PREFIX = "ALARMCOM"
+		def COMMANDS = getCommand()
+		COMMANDS.each { key, map ->
+			def device = getChildDevice("${PREFIX}${key}")
+			if(device) {
+				log.debug("trying to update status of child device ${key}")
+				if( on == key) {
+					device.sendEvent(name:"switch", value:"on")
+					log.debug("sending event on to ${key}")
+				} else {
+					device.sendEvent(name:"switch", value:"off")
+					log.debug("sending event off to ${key}")
+				}
+			}			
+		}
+	}
+}
+
+def runCommand(command, silent, nodelay, browserSession=[:]) {
 	browserSession.vars = ['__VIEWSTATEGENERATOR':'','__EVENTVALIDATION':'','__VIEWSTATE':'']
 
 	navigateUrl(getRecipe(command, silent, nodelay), browserSession)
+	updateStatus(command, (browserSession.state && browserSession.state.status) ? browserSession.state.status : null)
 
 	return browserSession
 }
@@ -118,13 +147,13 @@ private def getPatternValue(html, browserSession, kind, variable, pattern=null) 
 	if(!pattern) {
         pattern = /(?ms)name="${variable}".*?value="([^"]*)"/
     }
-	//log.debug("looking for values with pattern ${pattern} for ${variable}")
+	log.debug("looking for values with pattern ${pattern} for ${variable}")
 	def value = null
 	if(html) {
 		if(!browserSession[kind]) browserSession[kind] = [:]
 		def group = (html =~ pattern)
 		if(group) {
-			//log.debug "found variable value ${group[0][1]} for ${variable}"
+			log.debug "found variable value ${group[0][1]} for ${variable}"
 			value = group[0][1]
 			browserSession[kind][variable] = value
 		}
@@ -148,6 +177,26 @@ private def visitNodes(node, processor) {
 	}
 }
 
+private def getIdAttr(html, id, attr) {
+	def result = null
+	if(html && id && attr) {
+	   visitNodes(html[0]) {
+	    	if(it instanceof groovy.util.slurpersupport.Node) {
+		        def attributes = it.attributes()
+		        if(attributes && attributes['id'] == id) {
+		        	if('#text' == attr) 
+		        		result = it.text()
+		        	else {
+		        		result = attributes ? attributes[attr] : null
+		        	}
+	        	}
+	        }
+	        return result
+	    }
+	}
+    return result
+}
+
 private def extractSession(params, response, browserSession) {
 	//log.debug("extracting session variables..")
 	def count = 1
@@ -155,7 +204,12 @@ private def extractSession(params, response, browserSession) {
     
     if(params.state) {
     	params.state.each { name, pattern ->
-    		getPatternValue(html, browserSession, 'state', name, pattern)
+    		if(pattern instanceof java.util.regex.Pattern) {
+		    	getPatternValue(html, browserSession, 'state', name, pattern)
+    		} else if(pattern instanceof String) {
+		    	def parts = pattern.tokenize('.')
+		    	browserSession.state[name] = parts.size() == 2 ? getIdAttr(html, parts[0], parts[1]) : null
+		    } 
     	}
 	}
 
@@ -211,7 +265,7 @@ private def navigateUrl(recipe, browserSession) {
 	    	response.headerIterator('Location').each {
     			def location = params.uri.toURI().resolve(it.value).toString()
     			log.debug "redirecting on 302 to: ${location}"
-    			recipe.push(['name': "${params.name} redirect", 'uri': location, 'expect': params.expect, 'processor': params.processor])
+    			recipe.push(['name': "${params.name} redirect", 'uri': location, 'expect': params.expect, 'processor': params.processor, 'state': params.state])
     		}
 	    }
 
@@ -245,8 +299,8 @@ private def navigateUrl(recipe, browserSession) {
 		}
 		log.debug("navigating to ${params.uri} and method: ${params.method} and headers ${params.headers} and using params: ${params.variables}")
 		try {
-			if(params.method == 'post') {
-				if(params.variables) params.body = toQueryString(params.variables)
+			if(params.method == 'post' && params.variables) {
+				params.body = toQueryString(params.variables)
 				httpPost(params, success)
 			} else {
 				if(params.variables) params.query = params.variables
