@@ -19,6 +19,8 @@
 metadata {
 	definition (name: "Alarm.com Switch", namespace: "schwark", author: "Schwark Satyavolu") {
 	capability "Switch"
+	capability "Momentary"
+	capability "Refresh"
 	input("silent", "bool", title:"Use Silent Arming", description: "Arm Silently without warning beeps", required: false, displayDuringSetup: true, defaultValue: true )
 	input("nodelay", "bool", title:"Use No Delay", description: "Arm WITHOUT typical arm delay to allow entry of house", required: false, displayDuringSetup: true, defaultValue: false )
 	command "setCommand", ["string"]
@@ -30,17 +32,20 @@ simulator {
 	}
 
 tiles {
-	standardTile("switch", "device.switch", width: 1, height: 1, canChangeIcon: true) {
+	standardTile("switch", "device.switch", width: 3, height: 2, canChangeIcon: true) {
         	state "on", label: '${name}', action: "switch.off", icon: "st.switches.switch.on", backgroundColor: "#79b821"
         	state "off", label: '${name}', action: "switch.on", icon: "st.switches.switch.off", backgroundColor: "#ffffff"
    		}
+   	standardTile("refresh", "device.refresh", inactiveLabel: false, decoration: "flat", width: 1, height: 1) {
+			state "default", label:"", action:"refresh.refresh", icon:"st.secondary.refresh"
+		}
 	}
 
 preferences {
 }
 
     main "switch"
-    details(["switch"])
+    details(["switch","refresh"])
 }
 
 def updated() {
@@ -48,6 +53,15 @@ def updated() {
 
 def runCommand() {
 	parent.runCommand(state.command, settings.silent, settings.nodelay)
+}
+
+def push() {
+	runCommand()	
+}
+
+def refresh() {
+	log.debug("running device refresh for Alarm.com switch")
+	parent.runCommand('STATUS', false, false)
 }
 
 def on() {
