@@ -116,7 +116,7 @@ private def updateStatus(command, status) {
 		on = command
 	}
 	if(on) {
-		def PREFIX = "ALARMCOM"
+		def PREFIX = getPrefix()
 		def COMMANDS = getCommand()
 		COMMANDS.each { key, map ->
 			def device = getChildDevice("${PREFIX}${key}")
@@ -343,23 +343,41 @@ def parse(childDevice, description) {
 	}
 }
 
+def getPrefix() {
+	return "ALARMCOM"
+}
+
 def createSwitches() {
 	log.debug("Creating Alarm.com Switches...")
-	if(state.childDevicesCreated) return
 
+	def PREFIX = getPrefix()
 	def COMMANDS = getCommand()
+	
+	// add missing devices
 	COMMANDS.each() { id, map ->
 		def name = map['name']
 		log.debug("processing switch ${id} with name ${name}")
-		def PREFIX = "ALARMCOM"
 		def hubId = getHubId()
-		if(map.button) {
+		def device = getChildDevice("${PREFIX}${id}")
+		if(map.button && !device) {
 			def alarmSwitch = addChildDevice("schwark", "Alarm.com Switch", "${PREFIX}${id}", hubId, ["name": "AlarmCom.${id}", "label": "${name}", "completedSetup": true])
 			log.debug("created child device ${PREFIX}${id} with name ${name} and hub ${hubId}")
 			alarmSwitch.setCommand(id)
 		}
 	}
-	state.childDevicesCreated = true
+
+	// remove disabled devices
+	def children = getChildDevices()
+	children.each {
+		if(it && it.deviceNetworkId) {
+			def id = it.deviceNetworkId
+			if(id.startsWith(PREFIX)) {
+				id = id - PREFIX
+				def button = COMMANDS[id] ? COMMANDS[id].button : false
+				if(!button) deleteChildDevice(it.deviceNetworkId)
+			}
+		}
+	}
 }
 
 private Integer convertHexToInt(hex) {
