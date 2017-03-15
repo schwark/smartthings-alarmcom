@@ -33,8 +33,8 @@ simulator {
 
 tiles {
 	standardTile("switch", "device.switch", width: 3, height: 2, canChangeIcon: true) {
-        	state "on", label: '${name}', action: "switch.off", icon: "st.switches.switch.on", backgroundColor: "#79b821"
-        	state "off", label: '${name}', action: "switch.on", icon: "st.switches.switch.off", backgroundColor: "#ffffff"
+        	state "on", label: '${name}', action: "switch.off", icon: "st.security.alarm.on", backgroundColor: "#79b821"
+        	state "off", label: '${name}', action: "switch.on", icon: "st.security.alarm.off", backgroundColor: "#ffffff"
    		}
    	standardTile("refresh", "device.refresh", inactiveLabel: false, decoration: "flat", width: 1, height: 1) {
 			state "default", label:"", action:"refresh.refresh", icon:"st.secondary.refresh"

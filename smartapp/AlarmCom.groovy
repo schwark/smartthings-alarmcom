@@ -363,6 +363,12 @@ def createSwitches() {
 			def alarmSwitch = addChildDevice("schwark", "Alarm.com Switch", "${PREFIX}${id}", hubId, ["name": "AlarmCom.${id}", "label": "${name}", "completedSetup": true])
 			log.debug("created child device ${PREFIX}${id} with name ${name} and hub ${hubId}")
 			alarmSwitch.setCommand(id)
+			device = alarmSwitch
+			if(id == 'DISARM' && device) { // reverse icon states
+				device.setIcon("on", "switch", "st.security.alarm.off")
+				device.setIcon("off", "switch", "st.security.alarm.on")
+				device.save()
+			}
 		}
 	}
 
