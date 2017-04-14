@@ -73,7 +73,7 @@ private def parseEventMessage(String description) {
 }
 
 
-private def getCommand(command=null, silent=false, nodelay=false) {
+private def getCommand(command=null, silent=true, nodelay=false) {
 	def COMMANDS = [
 					'ARMSTAY': ['params': ['ctl00$phBody$butArmStay':'Arm Stay', 'ctl00$phBody$cbArmOptionSilent': silent?'on':'', 'ctl00$phBody$cbArmOptionNoEntryDelay': nodelay?'on':''], 'name': 'Arm Stay', button: true],
 					'ARMAWAY': ['params': ['ctl00$phBody$butArmAway':'Arm Away', 'ctl00$phBody$cbArmOptionSilent': silent?'on':'', 'ctl00$phBody$cbArmOptionNoEntryDelay': nodelay?'on':''], 'name': 'Arm Away', button: true],
