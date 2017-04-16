@@ -92,7 +92,7 @@ private def toQueryString(Map m)
 
 private def getRecipe(command, silent, nodelay) {
 	def COMMAND = getCommand(command, silent, nodelay)
-	log.debug("getRecipe got command: silent is ${silent} and nodelay is ${nodelay} and command is ${command}")
+	log.debug("getRecipe got command: silent is ${silent} and nodelay is ${nodelay} and command is ${command} and COMMAND is ${COMMAND}")
 	def STEPS = [
 			['name': 'initlogin', 'uri': 'https://www.alarm.com/pda/', 'state': ['pda': ~/(?ms)pda\/([^\/]+)/]],
 			['name': 'login', 'uri': 'https://www.alarm.com/pda/${pda}/default.aspx', 'method':'post', 'variables':[
