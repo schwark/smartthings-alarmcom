@@ -52,6 +52,7 @@ def updated() {
 }
 
 def runCommand() {
+	log.debug("switch got command ${state.command} with silent ${settings.silent} and nodelay of ${settings.nodelay}")
 	parent.runCommand(state.command, settings.silent, settings.nodelay)
 }
 

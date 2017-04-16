@@ -74,6 +74,7 @@ private def parseEventMessage(String description) {
 
 
 private def getCommand(command=null, silent=true, nodelay=false) {
+	log.debug("getCommand got command ${command} with silent ${silent} and nodelay of ${nodelay}")
 	def COMMANDS = [
 					'ARMSTAY': ['params': ['ctl00$phBody$butArmStay':'Arm Stay', 'ctl00$phBody$cbArmOptionSilent': silent?'on':'', 'ctl00$phBody$cbArmOptionNoEntryDelay': nodelay?'on':''], 'name': 'Arm Stay', button: true],
 					'ARMAWAY': ['params': ['ctl00$phBody$butArmAway':'Arm Away', 'ctl00$phBody$cbArmOptionSilent': silent?'on':'', 'ctl00$phBody$cbArmOptionNoEntryDelay': nodelay?'on':''], 'name': 'Arm Away', button: true],
@@ -91,7 +92,7 @@ private def toQueryString(Map m)
 
 private def getRecipe(command, silent, nodelay) {
 	def COMMAND = getCommand(command, silent, nodelay)
-	log.debug("got command: silent is ${silent} and nodelay is ${nodelay} and command is ${command}")
+	log.debug("getRecipe got command: silent is ${silent} and nodelay is ${nodelay} and command is ${command}")
 	def STEPS = [
 			['name': 'initlogin', 'uri': 'https://www.alarm.com/pda/', 'state': ['pda': ~/(?ms)pda\/([^\/]+)/]],
 			['name': 'login', 'uri': 'https://www.alarm.com/pda/${pda}/default.aspx', 'method':'post', 'variables':[
@@ -138,6 +139,7 @@ private def updateStatus(command, status) {
 def runCommand(command, silent, nodelay, browserSession=[:]) {
 	browserSession.vars = ['__VIEWSTATEGENERATOR':'','__EVENTVALIDATION':'','__VIEWSTATE':'']
 
+	log.debug("runCommand got command ${command} with silent ${silent} and nodelay of ${nodelay}")
 	navigateUrl(getRecipe(command, silent, nodelay), browserSession)
 	updateStatus(command, (browserSession.state && browserSession.state.status) ? browserSession.state.status : null)
 
