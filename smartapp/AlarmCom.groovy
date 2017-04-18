@@ -76,9 +76,9 @@ private def parseEventMessage(String description) {
 private def getCommand(command=null, silent=true, nodelay=false) {
 	log.debug("getCommand got command ${command} with silent ${silent} and nodelay of ${nodelay}")
 	def COMMANDS = [
-					'ARMSTAY': ['params': ['ctl00$phBody$butArmStay':'Arm Stay', 'ctl00$phBody$cbArmOptionSilent': silent?'on':'', 'ctl00$phBody$cbArmOptionNoEntryDelay': nodelay?'on':''], 'name': 'Arm Stay', button: true],
-					'ARMAWAY': ['params': ['ctl00$phBody$butArmAway':'Arm Away', 'ctl00$phBody$cbArmOptionSilent': silent?'on':'', 'ctl00$phBody$cbArmOptionNoEntryDelay': nodelay?'on':''], 'name': 'Arm Away', button: true],
-					'DISARM': ['params': ['ctl00$phBody$butDisarm':'Disarm', 'ctl00$phBody$cbArmOptionSilent': silent?'on':'', 'ctl00$phBody$cbArmOptionNoEntryDelay': nodelay?'on':''], 'name': 'Disarm', button: settings.disarm],
+					'ARMSTAY': ['params': ['ctl00$phBody$butArmStay':'Arm Stay', 'ctl00$phBody$cbArmOptionSilent': silent?'on':'', 'ctl00$phBody$cbArmOptionNoEntryDelay': nodelay?'on':'', 'ctl00$phBody$ArmingStateWidget$cbArmOptionSilent': silent?'on':'', 'ctl00$phBody$ArmingStateWidget$cbArmOptionNoEntryDelay': nodelay?'on':''], 'name': 'Arm Stay', button: true],
+					'ARMAWAY': ['params': ['ctl00$phBody$butArmAway':'Arm Away', 'ctl00$phBody$cbArmOptionSilent': silent?'on':'', 'ctl00$phBody$cbArmOptionNoEntryDelay': nodelay?'on':'', 'ctl00$phBody$ArmingStateWidget$cbArmOptionSilent': silent?'on':'', 'ctl00$phBody$ArmingStateWidget$cbArmOptionNoEntryDelay': nodelay?'on':''], 'name': 'Arm Away', button: true],
+					'DISARM': ['params': ['ctl00$phBody$butDisarm':'Disarm', 'ctl00$phBody$cbArmOptionSilent': silent?'on':'', 'ctl00$phBody$cbArmOptionNoEntryDelay': nodelay?'on':'', 'ctl00$phBody$ArmingStateWidget$cbArmOptionSilent': silent?'on':'', 'ctl00$phBody$ArmingStateWidget$cbArmOptionNoEntryDelay': nodelay?'on':''], 'name': 'Disarm', button: settings.disarm],
 					'STATUS': ['params': [], 'name': 'Status', button: false]
 				   ]
 
