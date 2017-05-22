@@ -20,6 +20,7 @@ metadata {
 	definition (name: "Alarm.com Switch", namespace: "schwark", author: "Schwark Satyavolu") {
 	capability "Switch"
 	capability "Momentary"
+	capability "Actuator"
 	capability "Refresh"
 	input("silent", "bool", title:"Use Silent Arming", description: "Arm Silently without warning beeps", required: false, displayDuringSetup: true, defaultValue: true )
 	input("nodelay", "bool", title:"Use No Delay", description: "Arm WITHOUT typical arm delay to allow entry of house", required: false, displayDuringSetup: true, defaultValue: false )
