@@ -1,7 +1,9 @@
 # SmartThings Integration with alarm.com
 
 
-* Login to https://graph.api.smartthings.com/ with your smartthings username and password
+* Login to the IDE with your smartthings username and password
+** North American users: https://graph-na02-useast1.api.smartthings.com/430
+** European users: https://graph-eu01-euwest1.api.smartthings.com/102
 
 * Install the Smartapp as a SmartApp:
 ```
