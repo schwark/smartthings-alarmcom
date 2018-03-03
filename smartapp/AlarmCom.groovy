@@ -107,7 +107,7 @@ private def toQueryString(Map m)
 	return m.collect { k, v -> "${k}=${URLEncoder.encode(v.toString())}" }.sort().join("&")
 }
 
-private def getRecipe(command, silent, nodelay) {
+private def getRecipe(command, silent=true, nodelay=false, bypass=false) {
 	def COMMAND = getCommand(command, silent, nodelay)
 	log.debug("getRecipe got command: silent is ${silent} and nodelay is ${nodelay} and command is ${command} and COMMAND is ${COMMAND}")
 	def STEPS = [
@@ -125,7 +125,7 @@ private def getRecipe(command, silent, nodelay) {
 			  	'ctl00$bottom_footer3$ucCLS_ZIP$txtZip': 'Zip Code'
 			 ], 'expect': ['location': / https\:\/\/www\.alarm\.com\/web\/Default\.aspx/], 'referer': 'self', 'state': ['status': ~/class="icon-circle icon-partition-status ([^\s]+) ember-view"/,'afg':'cookie:afg'] ],
 			 ['name': 'idextract', 'uri': 'https://www.alarm.com/web/History/EventHistory.aspx', 'state': ['dataunit': 'ctl00__page_html.data-unit-id', 'extension': 'ctl00_phBody_ddlDevice.optionvalue#Panel', 'afg':'cookie:afg']],			 
-		     ['name': command, 'uri': 'https://www.alarm.com/web/api/devices/partitions/${dataunit}${extension}/'+COMMAND.params.command, 'headers': ['ajaxrequestuniquekey': '${afg}'], 'method':'post','body': '{"forceBypass":'+bypass+',"noEntryDelay":'+noentry+',"silentArming":'+silent+',"statePollOnly":false}', 'expect': ['content': /(?ms)extendedArmingOptions/]]
+		     ['name': command, 'requestContentType': 'application/json; charset=UTF-8', 'contentType': 'application/vnd.api+json', 'uri': 'https://www.alarm.com/web/api/devices/partitions/${dataunit}${extension}/'+COMMAND.params.command, 'headers': ['ajaxrequestuniquekey': '${afg}'], 'method':'post','body': '{"forceBypass":'+bypass+',"noEntryDelay":'+nodelay+',"silentArming":'+silent+',"statePollOnly":false}', 'expect': ['content': /(?ms)extendedArmingOptions/]]
 	]
 	return STEPS.reverse()
 }
@@ -341,7 +341,7 @@ private def navigateUrl(recipes, browserSession) {
         }
 		if(!params.headers['Origin']) params.headers['Host'] = params.uri.toURI().host
 		params.headers['User-Agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.110 Safari/537.36'
-		params.headers['Accept'] = 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+		if(!params.contentType) params.headers['Accept'] = 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
 		params.headers['Accept-Language'] = 'en-US,en;q=0.5'
 		params.headers['Connection'] = 'close'
 
