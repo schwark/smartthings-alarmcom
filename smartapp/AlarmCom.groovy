@@ -213,7 +213,7 @@ private def getIdAttr(html, id, attr) {
 		        	if(attr.startsWith('optionvalue#')) {
 			        	def text = attr.split('#')[1]
 		        		it.children.each { child ->
-			        		log.debug("checking option with text ${child.text()} and ${child.attributes()} for ${attr} and ${id}")
+			        		//log.debug("checking option with text ${child.text()} and ${child.attributes()} for ${attr} and ${id}")
 		        			if(child.name == 'OPTION' && child.text() == text) {
 				        		result = child.attributes()['value']
 		        			}
