@@ -306,7 +306,9 @@ private def navigateUrl(recipes, browserSession) {
 
     	if(response.status == 200) {
     		if(response.data && response.contentType && response.contentType.contains('json')) {
-    			def c = new JsonSlurper().parse(response.data)
+    			def text = response.data
+    			log.debug("content is ${text}")
+    			def c = new JsonSlurper().parseText(text)
     			def states = ['Unknown', 'Disarmed', 'Armed Stay', 'Armed Away']
     			def current = c.data.attributes.state
     			log.debug("current status is ${current} which is ${states[current]}")
@@ -374,11 +376,7 @@ private def navigateUrl(recipes, browserSession) {
 					params.body = toQueryString(params.variables)
 				}
 				log.debug("postbody:${params.uri}::${params.body}")
-				if(params.requestContentType && params.requestContentType.contains('json')) {
-					httpPostJson(params, success)
-				} else {
-					httpPost(params, success)
-				}
+				httpPost(params, success)
 			} else {
 				if(params.variables) params.query = params.variables
 				log.debug("getquery:${params.uri}::${params.query}")
