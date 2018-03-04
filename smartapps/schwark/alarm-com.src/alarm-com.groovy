@@ -312,7 +312,8 @@ private def navigateUrl(recipes, browserSession) {
 
     	if(response.status == 200) {
     		if(response.data && response.contentType && response.contentType.contains('json')) {
-    			def text = response.data.text
+    			def text = response.data
+    			text = "${text}"
     			log.debug("content is ${text}")
     			def c = new JsonSlurper().parseText(text)
     			def states = ['Unknown', 'Disarmed', 'Armed Stay', 'Armed Away']
