@@ -147,7 +147,7 @@ private def updateStatus(command, status) {
 	}
 	log.debug("updating status to ${on} on command ${command}")
 
-	if(on) {
+	if(on && 'STATUS' != on) {
 		def PREFIX = getPrefix()
 		def COMMANDS = getCommand()
 		COMMANDS.each { key, map ->
