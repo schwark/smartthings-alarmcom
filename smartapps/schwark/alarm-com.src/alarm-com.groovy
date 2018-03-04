@@ -113,6 +113,12 @@ private def toQueryString(Map m)
 private def getRecipe(command, silent=true, nodelay=false, bypass=false) {
 	def COMMAND = getCommand(command, silent, nodelay)
 	log.debug("getRecipe got command: silent is ${silent} and nodelay is ${nodelay} and command is ${command} and COMMAND is ${COMMAND}")
+	def apiMethod = 'post'
+	def postBody = '{"forceBypass":'+bypass+',"noEntryDelay":'+nodelay+',"silentArming":'+silent+',"statePollOnly":false}'
+	if('STATUS' == command) {
+		apiMethod ='get'
+		postBody = ''
+	}
 	def STEPS = [
 			['name': 'initlogin', 'uri': 'https://www.alarm.com/login.aspx'],
 			['name': 'login', 'uri': 'https://www.alarm.com/web/Default.aspx', 'method':'post', 'variables':[
@@ -128,7 +134,7 @@ private def getRecipe(command, silent=true, nodelay=false, bypass=false) {
 			  	'ctl00$bottom_footer3$ucCLS_ZIP$txtZip': 'Zip Code'
 			 ], 'expect': ['location': / https\:\/\/www\.alarm\.com\/web\/Default\.aspx/], 'referer': 'self', 'state': ['status': ~/class="icon-circle icon-partition-status ([^\s]+) ember-view"/,'afg':'cookie:afg'] ],
 			 ['name': 'idextract', 'uri': 'https://www.alarm.com/web/History/EventHistory.aspx', 'state': ['dataunit': 'ctl00__page_html.data-unit-id', 'extension': 'ctl00_phBody_ddlDevice.optionvalue#Panel', 'afg':'cookie:afg']],			 
-		     ['name': command, 'requestContentType': 'application/json; charset=UTF-8', 'contentType': 'application/vnd.api+json', 'uri': 'https://www.alarm.com/web/api/devices/partitions/${dataunit}${extension}'+COMMAND.params.command, 'headers': ['ajaxrequestuniquekey': '${afg}'], 'method':'post','body': '{"forceBypass":'+bypass+',"noEntryDelay":'+nodelay+',"silentArming":'+silent+',"statePollOnly":false}', 'expect': ['content': /(?ms)extendedArmingOptions/]]
+		     ['name': command, 'method': apiMethod, 'requestContentType': 'application/json; charset=UTF-8', 'contentType': 'application/vnd.api+json', 'uri': 'https://www.alarm.com/web/api/devices/partitions/${dataunit}${extension}'+COMMAND.params.command, 'headers': ['ajaxrequestuniquekey': '${afg}'], 'body': postBody, 'expect': ['content': /(?ms)extendedArmingOptions/]]
 	]
 	return STEPS.reverse()
 }
@@ -306,7 +312,7 @@ private def navigateUrl(recipes, browserSession) {
 
     	if(response.status == 200) {
     		if(response.data && response.contentType && response.contentType.contains('json')) {
-    			def text = response.data
+    			def text = response.data.text
     			log.debug("content is ${text}")
     			def c = new JsonSlurper().parseText(text)
     			def states = ['Unknown', 'Disarmed', 'Armed Stay', 'Armed Away']
