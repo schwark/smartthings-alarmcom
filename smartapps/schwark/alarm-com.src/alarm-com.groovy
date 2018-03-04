@@ -5,8 +5,6 @@
  *
  */
 
-import groovy.json.JsonSlurper
-
 definition(
     name: "Alarm.com",
     namespace: "schwark",
@@ -132,22 +130,23 @@ private def getRecipe(command, silent=true, nodelay=false, bypass=false) {
 			  	'ctl00$ContentPlaceHolder1$loginform$txtPassword': settings.password,
 			  	'ctl00$ContentPlaceHolder1$loginform$signInButton':'Logging In...',
 			  	'ctl00$bottom_footer3$ucCLS_ZIP$txtZip': 'Zip Code'
-			 ], 'expect': ['location': / https\:\/\/www\.alarm\.com\/web\/Default\.aspx/], 'referer': 'self', 'state': ['status': ~/class="icon-circle icon-partition-status ([^\s]+) ember-view"/,'afg':'cookie:afg'] ],
+			 ], 'state': ['afg':'cookie:afg'] ],
 			 ['name': 'idextract', 'uri': 'https://www.alarm.com/web/History/EventHistory.aspx', 'state': ['dataunit': 'ctl00__page_html.data-unit-id', 'extension': 'ctl00_phBody_ddlDevice.optionvalue#Panel', 'afg':'cookie:afg']],			 
-		     ['name': command, 'method': apiMethod, 'requestContentType': 'application/json; charset=UTF-8', 'contentType': 'application/vnd.api+json', 'uri': 'https://www.alarm.com/web/api/devices/partitions/${dataunit}${extension}'+COMMAND.params.command, 'headers': ['ajaxrequestuniquekey': '${afg}'], 'body': postBody, 'expect': ['content': /(?ms)extendedArmingOptions/]]
+		     ['name': command, 'method': apiMethod, 'requestContentType': 'application/json; charset=UTF-8', 'contentType': 'application/vnd.api+json', 'uri': 'https://www.alarm.com/web/api/devices/partitions/${dataunit}${extension}'+COMMAND.params.command, 'headers': ['ajaxrequestuniquekey': '${afg}'], 'body': postBody, 'state': ['status': ~/(?ms)"state": (\d)\,/], 'expect': ['content': /(?ms)extendedArmingOptions/]]
 	]
 	return STEPS.reverse()
 }
 
 private def updateStatus(command, status) {
-	log.debug("updating status to ${status} on command ${command}")
 	def on = null
-	def id = ['Armed Stay': 'ARMSTAY', 'Armed Away': 'ARMAWAY', 'Disarmed': 'DISARM']
+	def id = ['0': 'UNKNOWN', '1': 'DISARM', '2': 'ARMSTAY', '3': 'ARMAWAY']
 	if('STATUS' == command && status) {
 		on = id[status] 
 	} else {
 		on = command
 	}
+	log.debug("updating status to ${on} on command ${command}")
+
 	if(on) {
 		def PREFIX = getPrefix()
 		def COMMANDS = getCommand()
@@ -180,11 +179,12 @@ def runCommand(command, silent, nodelay, browserSession=[:]) {
 
 private def getPatternValue(html, browserSession, kind, variable, pattern=null) {
 	if(!pattern) {
-        pattern = /(?ms)name="${variable}".*?value="([^"]*)"/
+        pattern = ~/(?ms)name="${variable}".*?value="([^"]*)"/
     }
 	log.debug("looking for values with pattern ${pattern} for ${variable}")
 	def value = null
 	if(html) {
+		html = "${html}"
 		if(!browserSession[kind]) browserSession[kind] = [:]
 		def group = (html =~ pattern)
 		if(group) {
@@ -250,16 +250,16 @@ private def extractSession(params, response, browserSession) {
     	params.state.each { name, pattern ->
     		if(pattern instanceof java.util.regex.Pattern) {
 		    	getPatternValue(html, browserSession, 'state', name, pattern)
-    			log.debug("state variable ${name} set to ${browserSession.state[name]}")
+    			log.debug("state variable ${name} set to ${browserSession.state[name]} from regex ${pattern} with content ${html}")
     		} else if(pattern instanceof String) {
     			if(pattern.startsWith('cookie:')) {
     				def cookieName = pattern.minus('cookie:')
     				browserSession.state[name] = getCookieValue(browserSession,cookieName)
-    				log.debug("state variable ${name} set to ${browserSession.state[name]}")
+    				log.debug("state variable ${name} set to ${browserSession.state[name]} from cookie")
     			} else {
 		    		def parts = pattern.tokenize('.')
 		    		browserSession.state[name] = parts.size() == 2 ? getIdAttr(html, parts[0], parts[1]) : null
-    				log.debug("state variable ${name} set to ${browserSession.state[name]}")
+    				log.debug("state variable ${name} set to ${browserSession.state[name]} from html parse with pattern ${pattern}")
 		    	}
 		    } 
     	}
@@ -306,21 +306,11 @@ private def navigateUrl(recipes, browserSession) {
 
     	browserSession.cookies = !browserSession.get('cookies') ? [] : browserSession.cookies
     	response.headerIterator('Set-Cookie').each {
-    		log.debug "adding cookie to cookie jar: ${it}"
+    		//log.debug "adding cookie to cookie jar: ${it}"
       		browserSession.cookies.add(it.value.split(';')[0])
     	}
 
     	if(response.status == 200) {
-    		if(response.data && response.contentType && response.contentType.contains('json')) {
-    			def text = response.data
-    			text = "${text}"
-    			log.debug("content is ${text}")
-    			def c = new JsonSlurper().parseText(text)
-    			def states = ['Unknown', 'Disarmed', 'Armed Stay', 'Armed Away']
-    			def current = c.data.attributes.state
-    			log.debug("current status is ${current} which is ${states[current]}")
-    			if(current) browserSession.state.status = states[current]
-    		}
     		browserSession.completedUrl = params.uri
 			extractSession(params, response, browserSession)
 	    	if(params.processor) params.processor(response, browserSession)
@@ -376,17 +366,17 @@ private def navigateUrl(recipes, browserSession) {
 			if(!params.method) params.method = 'get'
 			log.debug("navigation::${params.method} ${params.uri}")
 			params.headers.each{key, value ->
-				log.debug("header:${params.uri}::${key}:${value}")
+				//log.debug("header:${params.uri}::${key}:${value}")
 			}
 			if(params.method == 'post' && (params.variables || params.body)) {				
 				if(params.variables) {
 					params.body = toQueryString(params.variables)
 				}
-				log.debug("postbody:${params.uri}::${params.body}")
+				//log.debug("postbody:${params.uri}::${params.body}")
 				httpPost(params, success)
 			} else {
 				if(params.variables) params.query = params.variables
-				log.debug("getquery:${params.uri}::${params.query}")
+				//log.debug("getquery:${params.uri}::${params.query}")
 	    		httpGet(params,success)
    			}
 		} catch (e) {
