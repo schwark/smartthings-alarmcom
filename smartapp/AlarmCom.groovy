@@ -4,6 +4,9 @@
  *  Author: Schwark Satyavolu
  *
  */
+
+import groovy.json.JsonSlurper
+
 definition(
     name: "Alarm.com",
     namespace: "schwark",
@@ -93,10 +96,10 @@ private def parseEventMessage(String description) {
 private def getCommand(command=null, silent=true, nodelay=false, bypass=false) {
 	log.debug("getCommand got command ${command} with silent ${silent} and nodelay of ${nodelay}")
 	def COMMANDS = [
-					'ARMSTAY': ['params': ['command':'armStay', 'silent': silent?'true':'false', 'nodelay': nodelay?'true':'false'], 'name': 'Arm Stay', button: true],
-					'ARMAWAY': ['params': ['command':'armAway', 'silent': silent?'true':'false', 'nodelay': nodelay?'true':'false'], 'name': 'Arm Away', button: true],
-					'DISARM': ['params': ['command':'disarm', 'silent': silent?'true':'false', 'nodelay': nodelay?'true':'false'], 'name': 'Disarm', button: settings.disarm],
-					'STATUS': ['params': ['command':'disarm', 'silent': silent?'true':'false', 'nodelay': nodelay?'true':'false'], 'name': 'Status', button: false]
+					'ARMSTAY': ['params': ['command':'/armStay', 'silent': silent?'true':'false', 'nodelay': nodelay?'true':'false'], 'name': 'Arm Stay', button: true],
+					'ARMAWAY': ['params': ['command':'/armAway', 'silent': silent?'true':'false', 'nodelay': nodelay?'true':'false'], 'name': 'Arm Away', button: true],
+					'DISARM': ['params': ['command':'/disarm', 'silent': silent?'true':'false', 'nodelay': nodelay?'true':'false'], 'name': 'Disarm', button: settings.disarm],
+					'STATUS': ['params': ['command':'', 'silent': silent?'true':'false', 'nodelay': nodelay?'true':'false'], 'name': 'Status', button: false]
 				   ]
 
 	return command ? COMMANDS[command] : COMMANDS
@@ -125,7 +128,7 @@ private def getRecipe(command, silent=true, nodelay=false, bypass=false) {
 			  	'ctl00$bottom_footer3$ucCLS_ZIP$txtZip': 'Zip Code'
 			 ], 'expect': ['location': / https\:\/\/www\.alarm\.com\/web\/Default\.aspx/], 'referer': 'self', 'state': ['status': ~/class="icon-circle icon-partition-status ([^\s]+) ember-view"/,'afg':'cookie:afg'] ],
 			 ['name': 'idextract', 'uri': 'https://www.alarm.com/web/History/EventHistory.aspx', 'state': ['dataunit': 'ctl00__page_html.data-unit-id', 'extension': 'ctl00_phBody_ddlDevice.optionvalue#Panel', 'afg':'cookie:afg']],			 
-		     ['name': command, 'requestContentType': 'application/json; charset=UTF-8', 'contentType': 'application/vnd.api+json', 'uri': 'https://www.alarm.com/web/api/devices/partitions/${dataunit}${extension}/'+COMMAND.params.command, 'headers': ['ajaxrequestuniquekey': '${afg}'], 'method':'post','body': '{"forceBypass":'+bypass+',"noEntryDelay":'+nodelay+',"silentArming":'+silent+',"statePollOnly":false}', 'expect': ['content': /(?ms)extendedArmingOptions/]]
+		     ['name': command, 'requestContentType': 'application/json; charset=UTF-8', 'contentType': 'application/vnd.api+json', 'uri': 'https://www.alarm.com/web/api/devices/partitions/${dataunit}${extension}'+COMMAND.params.command, 'headers': ['ajaxrequestuniquekey': '${afg}'], 'method':'post','body': '{"forceBypass":'+bypass+',"noEntryDelay":'+nodelay+',"silentArming":'+silent+',"statePollOnly":false}', 'expect': ['content': /(?ms)extendedArmingOptions/]]
 	]
 	return STEPS.reverse()
 }
@@ -302,9 +305,12 @@ private def navigateUrl(recipes, browserSession) {
     	}
 
     	if(response.status == 200) {
-    		if(params.uri.contains('Event')) {
-    			def c = response.data.toString()
-    			//log.debug("content for ${params.name} and uri:${params.uri} is ${c.substring(c.indexOf('data-unit-id')-10,c.indexOf('data-unit-id')+10)}")
+    		if(response.data && response.contentType && response.contentType.contains('json')) {
+    			def c = new JsonSlurper().parse(response.data)
+    			def states = ['Unknown', 'Disarmed', 'Armed Stay', 'Armed Away']
+    			def current = c.data.attributes.state
+    			log.debug("current status is ${current} which is ${states[current]}")
+    			if(current) browserSession.state.status = states[current]
     		}
     		browserSession.completedUrl = params.uri
 			extractSession(params, response, browserSession)
@@ -368,7 +374,11 @@ private def navigateUrl(recipes, browserSession) {
 					params.body = toQueryString(params.variables)
 				}
 				log.debug("postbody:${params.uri}::${params.body}")
-				httpPost(params, success)
+				if(params.requestContentType && params.requestContentType.contains('json')) {
+					httpPostJson(params, success)
+				} else {
+					httpPost(params, success)
+				}
 			} else {
 				if(params.variables) params.query = params.variables
 				log.debug("getquery:${params.uri}::${params.query}")
