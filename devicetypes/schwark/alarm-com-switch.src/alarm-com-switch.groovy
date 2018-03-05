@@ -24,6 +24,7 @@ metadata {
 	capability "Refresh"
 	input("silent", "bool", title:"Use Silent Arming", description: "Arm Silently without warning beeps", required: false, displayDuringSetup: true, defaultValue: true )
 	input("nodelay", "bool", title:"Use No Delay", description: "Arm WITHOUT typical arm delay to allow entry of house", required: false, displayDuringSetup: true, defaultValue: false )
+	input("bypass", "bool", title:"Use Bypass Sensors", description: "Arm even if some sensors are open", required: false, displayDuringSetup: true, defaultValue: false )
 	command "setCommand", ["string"]
 	command "runCommand"
 	}
@@ -53,8 +54,8 @@ def updated() {
 }
 
 def runCommand() {
-	log.debug("switch got command ${state.command} with silent ${settings.silent} and nodelay of ${settings.nodelay}")
-	parent.runCommand(state.command, settings.silent, settings.nodelay)
+	log.debug("switch got command ${state.command} with silent ${settings.silent} and nodelay of ${settings.nodelay} and bypass of ${settings.bypass}")
+	parent.runCommand(state.command, settings.silent, settings.nodelay, settings.bypass)
 }
 
 def push() {
@@ -63,7 +64,7 @@ def push() {
 
 def refresh() {
 	log.debug("running device refresh for Alarm.com switch")
-	parent.runCommand('STATUS', false, false)
+	parent.runCommand('STATUS', false, false, false)
 }
 
 def on() {

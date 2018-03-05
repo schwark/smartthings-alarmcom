@@ -14,12 +14,13 @@ definition(
     iconUrl: "https://images-na.ssl-images-amazon.com/images/I/71yQ11GAAiL.png",
     iconX2Url: "https://images-na.ssl-images-amazon.com/images/I/71yQ11GAAiL.png",
     singleInstance: true
-)
+) 
 
 preferences {
 	input("username", "string", title:"Username", description: "Please enter your Alarm.com username", required: true, displayDuringSetup: true)
 	input("password", "password", title:"Password", description: "Please enter your Alarm.com password", required: true, displayDuringSetup: true)
 	input("disarm", "bool", title:"Add Disarm Switch as well", description: "Disarm button is only added if this is set to on", required: false, displayDuringSetup: true, defaultValue: false )
+
 }
 
 /////////////////////////////////////
@@ -110,13 +111,14 @@ private def toQueryString(Map m)
 
 private def getRecipe(command, silent=true, nodelay=false, bypass=false) {
 	def COMMAND = getCommand(command, silent, nodelay)
-	log.debug("getRecipe got command: silent is ${silent} and nodelay is ${nodelay} and command is ${command} and COMMAND is ${COMMAND}")
+	log.debug("getRecipe got command: silent is ${silent} and nodelay is ${nodelay} and bypass is ${bypass} and command is ${command} and COMMAND is ${COMMAND} and panelid is ${state.panelid}")
 	def apiMethod = 'post'
 	def postBody = '{"forceBypass":'+bypass+',"noEntryDelay":'+nodelay+',"silentArming":'+silent+',"statePollOnly":false}'
 	if('STATUS' == command) {
 		apiMethod ='get'
 		postBody = ''
 	}
+	def urlext = (state.panelid ? state.panelid : '${dataunit}${extension}')
 	def STEPS = [
 			['name': 'initlogin', 'uri': 'https://www.alarm.com/login.aspx'],
 			['name': 'login', 'uri': 'https://www.alarm.com/web/Default.aspx', 'method':'post', 'variables':[
@@ -132,12 +134,13 @@ private def getRecipe(command, silent=true, nodelay=false, bypass=false) {
 			  	'ctl00$bottom_footer3$ucCLS_ZIP$txtZip': 'Zip Code'
 			 ], 'state': ['afg':'cookie:afg'] ],
 			 ['name': 'idextract', 'uri': 'https://www.alarm.com/web/History/EventHistory.aspx', 'state': ['dataunit': 'ctl00__page_html.data-unit-id', 'extension': 'ctl00_phBody_ddlDevice.optionvalue#Panel', 'afg':'cookie:afg']],			 
-		     ['name': command, 'method': apiMethod, 'requestContentType': 'application/json; charset=UTF-8', 'contentType': 'application/vnd.api+json', 'uri': 'https://www.alarm.com/web/api/devices/partitions/${dataunit}${extension}'+COMMAND.params.command, 'headers': ['ajaxrequestuniquekey': '${afg}'], 'body': postBody, 'state': ['status': ~/(?ms)"state": (\d)\,/], 'expect': ['content': /(?ms)extendedArmingOptions/]]
+		     ['name': command, 'method': apiMethod, 'requestContentType': 'application/json; charset=UTF-8', 'contentType': 'application/vnd.api+json', 'uri': 'https://www.alarm.com/web/api/devices/partitions/'+urlext+COMMAND.params.command, 'headers': ['ajaxrequestuniquekey': '${afg}'], 'body': postBody, 'state': ['status': ~/(?ms)"state": (\d)\,/], 'expect': ['content': /(?ms)extendedArmingOptions/]]
 	]
+	if(state.panelid) STEPS.remove(2)
 	return STEPS.reverse()
 }
 
-private def updateStatus(command, status) {
+private def updateStatus(command, status, browserSession=null) {
 	def on = null
 	def id = ['0': 'UNKNOWN', '1': 'DISARM', '2': 'ARMSTAY', '3': 'ARMAWAY']
 	if('STATUS' == command && status) {
@@ -146,6 +149,11 @@ private def updateStatus(command, status) {
 		on = command
 	}
 	log.debug("updating status to ${on} on command ${command}")
+
+	if(!state.panelid && browserSession && browserSession.state.dataunit && browserSession.state.extension) {
+		state.panelid = browserSession.state.dataunit+browserSession.state.extension
+		log.debug("setting panel id to ${state.panelid}")
+	}
 
 	if(on && 'STATUS' != on) {
 		def PREFIX = getPrefix()
@@ -172,7 +180,7 @@ def runCommand(command, silent, nodelay, browserSession=[:]) {
 	log.debug("runCommand got command ${command} with silent ${silent} and nodelay of ${nodelay}")
 	def recipes = getRecipe(command, silent, nodelay)
 	navigateUrl(recipes, browserSession)
-	updateStatus(command, (browserSession.state && browserSession.state.status) ? browserSession.state.status : null)
+	updateStatus(command, (browserSession.state && browserSession.state.status) ? browserSession.state.status : null, browserSession)
 
 	return browserSession
 }
