@@ -67,6 +67,7 @@ Re-add your switches to your automations, Alexa, etc.
 
 * Github integration 
 ```
+Enable [github integration](http://docs.smartthings.com/en/latest/tools-and-ide/github-integration.html)
 Click on My SmartApps/Settings/Add new repository
 Owner: schwark, Name: smartthings-alarmcom, Branch: master
 Save
