@@ -174,11 +174,11 @@ private def updateStatus(command, status, browserSession=null) {
 	}
 }
 
-def runCommand(command, silent, nodelay, browserSession=[:]) {
+def runCommand(command, silent, nodelay, bypass, browserSession=[:]) {
 	browserSession.vars = ['__VIEWSTATEGENERATOR':'','__EVENTVALIDATION':'','__VIEWSTATE':'']
 
-	log.debug("runCommand got command ${command} with silent ${silent} and nodelay of ${nodelay}")
-	def recipes = getRecipe(command, silent, nodelay)
+	log.debug("runCommand got command ${command} with silent ${silent} and nodelay of ${nodelay} and bypass of ${bypass}")
+	def recipes = getRecipe(command, silent, nodelay, bypass)
 	navigateUrl(recipes, browserSession)
 	updateStatus(command, (browserSession.state && browserSession.state.status) ? browserSession.state.status : null, browserSession)
 
