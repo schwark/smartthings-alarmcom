@@ -174,7 +174,7 @@ private def updateStatus(command, status, browserSession=null) {
 	}
 }
 
-def runCommand(command, silent, nodelay, bypass, browserSession=[:]) {
+def runCommand(command, silent, nodelay, bypass=false, browserSession=[:]) {
 	browserSession.vars = ['__VIEWSTATEGENERATOR':'','__EVENTVALIDATION':'','__VIEWSTATE':'']
 
 	log.debug("runCommand got command ${command} with silent ${silent} and nodelay of ${nodelay} and bypass of ${bypass}")
