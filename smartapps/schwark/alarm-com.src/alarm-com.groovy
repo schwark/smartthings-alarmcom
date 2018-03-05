@@ -359,7 +359,6 @@ private def navigateUrl(recipes, browserSession) {
 		params.headers['User-Agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.110 Safari/537.36'
 		if(!params.contentType) params.headers['Accept'] = 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
 		params.headers['Accept-Language'] = 'en-US,en;q=0.5'
-		params.headers['Connection'] = 'close'
 
 		//if(params.referer == 'self') params.referer = params.uri
 		//if(params.referer) params.headers['Referer'] = params.referer
