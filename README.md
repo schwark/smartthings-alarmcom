@@ -65,9 +65,8 @@ Go to you mobile app and reinstall the smartapp, and wait 10 minutes for the swi
 Re-add your switches to your automations, Alexa, etc.
 ```
 
-* Github integration 
+* Github integration (first need to enable [github integration](http://docs.smartthings.com/en/latest/tools-and-ide/github-integration.html))
 ```
-Enable [github integration](http://docs.smartthings.com/en/latest/tools-and-ide/github-integration.html)
 Click on My SmartApps/Settings/Add new repository
 Owner: schwark, Name: smartthings-alarmcom, Branch: master
 Save
