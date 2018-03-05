@@ -110,7 +110,7 @@ private def toQueryString(Map m)
 }
 
 private def getRecipe(command, silent=true, nodelay=false, bypass=false) {
-	def COMMAND = getCommand(command, silent, nodelay)
+	def COMMAND = getCommand(command, silent, nodelay, bypass)
 	log.debug("getRecipe got command: silent is ${silent} and nodelay is ${nodelay} and bypass is ${bypass} and command is ${command} and COMMAND is ${COMMAND} and panelid is ${state.panelid}")
 	def apiMethod = 'post'
 	def postBody = '{"forceBypass":'+bypass+',"noEntryDelay":'+nodelay+',"silentArming":'+silent+',"statePollOnly":false}'
