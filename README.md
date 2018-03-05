@@ -64,3 +64,14 @@ Click Save and then Publish/For Me
 Go to you mobile app and reinstall the smartapp, and wait 10 minutes for the switches to show up again
 Re-add your switches to your automations, Alexa, etc.
 ```
+
+* Github integration 
+```
+Click on My SmartApps/Settings/Add new repository
+Owner: schwark, Name: smartthings-alarmcom, Branch: master
+Save
+Update from Repo / smartthings-alarmcom (master)
+Check all the ones under New and Obsolete
+Check Publish checkbox at the bottom (next the Cancel button)
+Click Execute update
+```
