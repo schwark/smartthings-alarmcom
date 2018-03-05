@@ -134,7 +134,7 @@ private def getRecipe(command, silent=true, nodelay=false, bypass=false) {
 			  	'ctl00$bottom_footer3$ucCLS_ZIP$txtZip': 'Zip Code'
 			 ], 'state': ['afg':'cookie:afg'] ],
 			 ['name': 'idextract', 'uri': 'https://www.alarm.com/web/History/EventHistory.aspx', 'state': ['dataunit': 'ctl00__page_html.data-unit-id', 'extension': 'ctl00_phBody_ddlDevice.optionvalue#Panel', 'afg':'cookie:afg']],			 
-		     ['name': command, 'method': apiMethod, 'requestContentType': 'application/json; charset=UTF-8', 'contentType': 'application/vnd.api+json', 'uri': 'https://www.alarm.com/web/api/devices/partitions/'+urlext+COMMAND.params.command, 'headers': ['ajaxrequestuniquekey': '${afg}'], 'body': postBody, 'state': ['status': ~/(?ms)"state": (\d)\,/], 'expect': ['content': /(?ms)extendedArmingOptions/]]
+		     ['name': command, 'method': apiMethod, 'requestContentType': 'application/json; charset=UTF-8', 'contentType': 'application/vnd.api+json', 'uri': 'https://www.alarm.com/web/api/devices/partitions/'+urlext+COMMAND.params.command, 'headers': ['ajaxrequestuniquekey': '${afg}'], 'body': postBody, 'state': ['status': ~/(?ms)"state": (\d)\,/]]
 	]
 	if(state.panelid) STEPS.remove(2)
 	return STEPS.reverse()
@@ -306,6 +306,8 @@ private def fillTemplate(template, map) {
 }
 
 private def navigateUrl(recipes, browserSession) {
+	if(!recipes.size()) return
+
     def params = recipes.pop()
     log.debug("processing recipe ${params.name}")
 
@@ -319,12 +321,13 @@ private def navigateUrl(recipes, browserSession) {
     	}
 
     	if(response.status == 200) {
+    		def text = "${response.data}"
     		browserSession.completedUrl = params.uri
 			extractSession(params, response, browserSession)
 	    	if(params.processor) params.processor(response, browserSession)
 	    	if(params.expect) {
 	    		if(params.expect.content) {
-	    			log.debug((response.data =~ params.expect.content) ? "${params.name} is successful by content" : "${params.name} has failed by content")
+	    			log.debug((text =~ params.expect.content) ? "${params.name} is successful by content" : "${params.name} has failed by content")
 	    		} else if(params.expect.location) {
 	    			log.debug((browserSession.completedUrl =~ params.expect.location) ? "${params.name} is successful by location" : "${params.name} has failed by location at ${browserSession.completedUrl} - expecting ${params.expect.location}")
 				}
@@ -342,7 +345,7 @@ private def navigateUrl(recipes, browserSession) {
 			navigateUrl(recipes, browserSession)
 		}
 
-	    return browserSession
+	    //return browserSession
     }
 
 	if(params.uri) {
