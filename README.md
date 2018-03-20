@@ -75,3 +75,5 @@ Check all the ones under New and Obsolete
 Check Publish checkbox at the bottom (next the Cancel button)
 Click Execute update
 ```
+
+* Switching from existing code to Github integration without removing switches and app - see [switching to github](https://www.evernote.com/shard/s3/sh/aa52a3dd-7602-40c4-bea2-3ae7f4838027/d2e470e57ad6bacf)
