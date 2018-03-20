@@ -22,6 +22,7 @@ metadata {
 	capability "Momentary"
 	capability "Actuator"
 	capability "Refresh"
+	capability "Polling"
 	input("silent", "bool", title:"Use Silent Arming", description: "Arm Silently without warning beeps", required: false, displayDuringSetup: true, defaultValue: true )
 	input("nodelay", "bool", title:"Use No Delay", description: "Arm WITHOUT typical arm delay to allow entry of house", required: false, displayDuringSetup: true, defaultValue: false )
 	input("bypass", "bool", title:"Use Bypass Sensors", description: "Arm even if some sensors are open", required: false, displayDuringSetup: true, defaultValue: false )
@@ -65,6 +66,10 @@ def push() {
 def refresh() {
 	log.debug("running device refresh for Alarm.com switch")
 	parent.runCommand('STATUS', false, false, false)
+}
+
+def poll() {
+	refresh()
 }
 
 def on() {
