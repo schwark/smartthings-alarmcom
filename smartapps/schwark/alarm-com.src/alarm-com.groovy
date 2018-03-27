@@ -132,11 +132,16 @@ private def getRecipe(command, silent=true, nodelay=false, bypass=false) {
 			  	'ctl00$ContentPlaceHolder1$loginform$txtPassword': settings.password,
 			  	'ctl00$ContentPlaceHolder1$loginform$signInButton':'Logging In...',
 			  	'ctl00$bottom_footer3$ucCLS_ZIP$txtZip': 'Zip Code'
-			 ], 'state': ['afg':'cookie:afg'] ],
+			 ], 'state': ['afg':'cookie:afg'], 'nofollow': true ],
+		     //['name': 'userextract', 'requestContentType': 'application/json; charset=UTF-8', 'contentType': 'application/vnd.api+json', 'uri': 'https://www.alarm.com/web/api/systems/availableSystemItems', 'headers': ['ajaxrequestuniquekey': '${afg}'], 'body': '', 'state': ['userid': 'json:data.0.id']],
+		     //['name': 'panelextract', 'requestContentType': 'application/json; charset=UTF-8', 'contentType': 'application/vnd.api+json', 'uri': 'https://www.alarm.com/web/api/systems/systems/${userid}', 'headers': ['ajaxrequestuniquekey': '${afg}'], 'body': '', 'state': ['panelid': 'json:data.relationships.partitions.data.0.id']],
 			 ['name': 'idextract', 'uri': 'https://www.alarm.com/web/History/EventHistory.aspx', 'state': ['dataunit': 'ctl00__page_html.data-unit-id', 'extension': 'ctl00_phBody_ddlDevice.optionvalue#Panel', 'afg':'cookie:afg']],			 
 		     ['name': command, 'method': apiMethod, 'requestContentType': 'application/json; charset=UTF-8', 'contentType': 'application/vnd.api+json', 'uri': 'https://www.alarm.com/web/api/devices/partitions/'+urlext+COMMAND.params.command, 'headers': ['ajaxrequestuniquekey': '${afg}'], 'body': postBody, 'state': ['status': ~/(?ms)"state": (\d)\,/]]
 	]
-	if(state.panelid) STEPS.remove(2)
+	if(state.panelid) {
+		STEPS.remove(2)
+		//STEPS.remove(2)
+	}
 	return STEPS.reverse()
 }
 
@@ -249,6 +254,21 @@ private def getIdAttr(html, id, attr) {
     return result
 }
 
+private def getJsonValue(html, browserSession, jsonPath) {
+	def obj = html
+	if(!(obj instanceof java.util.Map)) {
+		def jsonSlurper = new groovy.json.JsonSlurper()
+		obj = jsonSlurper.parseText("${html}")		
+	}
+	def parts = jsonPath.tokenize('.')
+	parts.each { 
+		if(it.isInteger()) it = it.toInteger()
+		obj = obj[it]
+	}
+
+	return obj
+}
+
 private def extractSession(params, response, browserSession) {
 	//log.debug("extracting session variables..")
 	def count = 1
@@ -264,6 +284,10 @@ private def extractSession(params, response, browserSession) {
     				def cookieName = pattern.minus('cookie:')
     				browserSession.state[name] = getCookieValue(browserSession,cookieName)
     				log.debug("state variable ${name} set to ${browserSession.state[name]} from cookie")
+    			} else if(pattern.startsWith('json:')) {
+    				def jsonPath = pattern.minus('json:')
+    				browserSession.state[name] = getJsonValue(html, browserSession,jsonPath)
+    				log.debug("state variable ${name} set to ${browserSession.state[name]} from json")
     			} else {
 		    		def parts = pattern.tokenize('.')
 		    		browserSession.state[name] = parts.size() == 2 ? getIdAttr(html, parts[0], parts[1]) : null
@@ -319,12 +343,12 @@ private def navigateUrl(recipes, browserSession) {
     		//log.debug "adding cookie to cookie jar: ${it}"
       		browserSession.cookies.add(it.value.split(';')[0])
     	}
+		extractSession(params, response, browserSession)
+	    if(params.processor) params.processor(response, browserSession)
 
     	if(response.status == 200) {
     		def text = "${response.data}"
     		browserSession.completedUrl = params.uri
-			extractSession(params, response, browserSession)
-	    	if(params.processor) params.processor(response, browserSession)
 	    	if(params.expect) {
 	    		if(params.expect.content) {
 	    			log.debug((text =~ params.expect.content) ? "${params.name} is successful by content" : "${params.name} has failed by content")
@@ -332,7 +356,7 @@ private def navigateUrl(recipes, browserSession) {
 	    			log.debug((browserSession.completedUrl =~ params.expect.location) ? "${params.name} is successful by location" : "${params.name} has failed by location at ${browserSession.completedUrl} - expecting ${params.expect.location}")
 				}
 	    	}
-	    } else if(response.status == 302) {
+	    } else if(response.status == 302 && !params.nofollow) {
 	    	response.headerIterator('Location').each {
     			def location = params.uri.toURI().resolve(it.value).toString()
     			log.debug "redirecting on 302 to: ${location}"
@@ -352,9 +376,6 @@ private def navigateUrl(recipes, browserSession) {
 		if(!browserSession.state) browserSession.state = [:]
 		params.uri = fillTemplate(params.uri, browserSession.vars + browserSession.state)
         if(!params.headers) params.headers = [:]
-        params.headers.each {name, value ->
-        	params.headers[name] = fillTemplate(value, browserSession.vars + browserSession.state)
-        }
 		if(!params.headers['Origin']) params.headers['Host'] = params.uri.toURI().host
 		params.headers['User-Agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.110 Safari/537.36'
 		if(!params.contentType) params.headers['Accept'] = 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
@@ -371,13 +392,16 @@ private def navigateUrl(recipes, browserSession) {
 				if(!value && browserSession.vars[name]) params.variables[name] = browserSession.vars[name]
 			}
 		}
+        params.headers.each {name, value ->
+        	params.headers[name] = fillTemplate(value, browserSession.vars + browserSession.state)
+        }
 		try {
 			log.debug("navigation:${params}")
 			if(!params.method) params.method = 'get'
 			log.debug("navigation::${params.method} ${params.uri}")
-			params.headers.each{key, value ->
-				//log.debug("header:${params.uri}::${key}:${value}")
-			}
+			//params.headers.each{key, value ->
+			//	log.debug("header:${params.uri}::${key}:${value}")
+			//}
 			if(params.method == 'post' && (params.variables || params.body)) {				
 				if(params.variables) {
 					params.body = toQueryString(params.variables)
