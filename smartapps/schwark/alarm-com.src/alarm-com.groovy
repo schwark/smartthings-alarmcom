@@ -109,7 +109,7 @@ private def toQueryString(Map m)
 	return m.collect { k, v -> "${k}=${URLEncoder.encode(v.toString())}" }.sort().join("&")
 }
 
-private def getRecipe(command, silent=true, nodelay=false, bypass=false) {
+private def getRecipe(command, silent=true, nodelay=false, bypass=false, browserSession) {
 	def COMMAND = getCommand(command, silent, nodelay, bypass)
 	log.debug("getRecipe got command: silent is ${silent} and nodelay is ${nodelay} and bypass is ${bypass} and command is ${command} and COMMAND is ${COMMAND} and panelid is ${state.panelid}")
 	def apiMethod = 'post'
@@ -118,8 +118,9 @@ private def getRecipe(command, silent=true, nodelay=false, bypass=false) {
 		apiMethod ='get'
 		postBody = ''
 	}
-	def urlext = (state.panelid ? state.panelid : '${dataunit}${extension}')
-	def STEPS = [
+    
+    //First we must execute the login
+    def STEPS = [
 			['name': 'initlogin', 'uri': 'https://www.alarm.com/login.aspx'],
 			['name': 'login', 'uri': 'https://www.alarm.com/web/Default.aspx', 'method':'post', 'variables':[
 			  	'__VIEWSTATE':'',
@@ -133,16 +134,27 @@ private def getRecipe(command, silent=true, nodelay=false, bypass=false) {
 			  	'ctl00$ContentPlaceHolder1$loginform$signInButton':'Logging In...',
 			  	'ctl00$bottom_footer3$ucCLS_ZIP$txtZip': 'Zip Code'
 			 ], 'state': ['afg':'cookie:afg'], 'nofollow': true ],
-		     //['name': 'userextract', 'requestContentType': 'application/json; charset=UTF-8', 'contentType': 'application/vnd.api+json', 'uri': 'https://www.alarm.com/web/api/systems/availableSystemItems', 'headers': ['ajaxrequestuniquekey': '${afg}'], 'body': '', 'state': ['userid': 'json:data.0.id']],
-		     //['name': 'panelextract', 'requestContentType': 'application/json; charset=UTF-8', 'contentType': 'application/vnd.api+json', 'uri': 'https://www.alarm.com/web/api/systems/systems/${userid}', 'headers': ['ajaxrequestuniquekey': '${afg}'], 'body': '', 'state': ['panelid': 'json:data.relationships.partitions.data.0.id']],
-			 ['name': 'idextract', 'uri': 'https://www.alarm.com/web/History/EventHistory.aspx', 'state': ['dataunit': 'ctl00__page_html.data-unit-id', 'extension': 'ctl00_phBody_ddlDevice.optionvalue#Panel', 'afg':'cookie:afg']],			 
-		     ['name': command, 'method': apiMethod, 'requestContentType': 'application/json; charset=UTF-8', 'contentType': 'application/vnd.api+json', 'uri': 'https://www.alarm.com/web/api/devices/partitions/'+urlext+COMMAND.params.command, 'headers': ['ajaxrequestuniquekey': '${afg}'], 'body': postBody, 'state': ['status': ~/(?ms)"state": (\d)\,/]]
 	]
-	if(state.panelid) {
-		STEPS.remove(2)
-		//STEPS.remove(2)
-	}
-	return STEPS.reverse()
+    navigateUrl(STEPS.reverse(), browserSession) 
+  
+    //Next we must extract the user ID for the logged in user
+    STEPS = [
+    	['name': 'userextract', 'requestContentType': 'application/json; charset=UTF-8', 'contentType': 'application/vnd.api+json', 'uri': 'https://www.alarm.com/web/api/systems/availableSystemItems', 'headers': ['ajaxrequestuniquekey': '${afg}'], 'body': '', 'state': ['userid': 'json:data.0.id']]
+    ]
+  	navigateUrl(STEPS, browserSession)   
+    
+    //Next we must extract the panelid for the current logged in user
+    STEPS = [
+        ['name': 'panelextract', 'requestContentType': 'application/json; charset=UTF-8', 'contentType': 'application/vnd.api+json', 'uri': 'https://www.alarm.com/web/api/systems/systems/${userid}', 'headers': ['ajaxrequestuniquekey': '${afg}'], 'body': '', 'state': ['panelid': 'json:data.relationships.partitions.data.0.id'], 'nofollow': true ],
+    ]    
+    navigateUrl(STEPS.reverse(), browserSession)  
+    
+    //last we return the remaining Command to be executed
+   	STEPS = [
+       ['name': command, 'method': apiMethod, 'requestContentType': 'application/json; charset=UTF-8', 'contentType': 'application/vnd.api+json', 'uri': 'https://www.alarm.com/web/api/devices/partitions/${panelid}'+COMMAND.params.command, 'headers': ['ajaxrequestuniquekey': '${afg}'], 'body': postBody, 'state': ['status': ~/(?ms)"state": (\d)\,/]]
+    ]
+    
+	return STEPS
 }
 
 private def updateStatus(command, status, browserSession=null) {
@@ -183,8 +195,9 @@ def runCommand(command, silent, nodelay, bypass=false, browserSession=[:]) {
 	browserSession.vars = ['__VIEWSTATEGENERATOR':'','__EVENTVALIDATION':'','__VIEWSTATE':'']
 
 	log.debug("runCommand got command ${command} with silent ${silent} and nodelay of ${nodelay} and bypass of ${bypass}")
-	def recipes = getRecipe(command, silent, nodelay, bypass)
-	navigateUrl(recipes, browserSession)
+	
+    def recipes = getRecipe(command, silent, nodelay, bypass, browserSession)
+	navigateUrl(recipes, browserSession)    
 	updateStatus(command, (browserSession.state && browserSession.state.status) ? browserSession.state.status : null, browserSession)
 
 	return browserSession
@@ -273,7 +286,7 @@ private def extractSession(params, response, browserSession) {
 	//log.debug("extracting session variables..")
 	def count = 1
 	def html = response.data
-    
+
     if(params.state) {
     	params.state.each { name, pattern ->
     		if(pattern instanceof java.util.regex.Pattern) {
