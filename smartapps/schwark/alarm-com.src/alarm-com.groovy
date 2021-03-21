@@ -133,14 +133,15 @@ private def getRecipe(command, silent=true, nodelay=false, bypass=false) {
 			  	'txtPassword': settings.password,
 			  	'ctl00$ContentPlaceHolder1$loginform$signInButton':'Login'
 			 ], 'state': ['afg':'cookie:afg'], 'nofollow': true, 'cookies': ['twoFactorAuthenticationSkipped-6908106=true']],
-		     //['name': 'userextract', 'requestContentType': 'application/json; charset=UTF-8', 'contentType': 'application/vnd.api+json', 'uri': 'https://www.alarm.com/web/api/systems/availableSystemItems', 'headers': ['ajaxrequestuniquekey': '${afg}'], 'body': '', 'state': ['userid': 'json:data.0.id']],
-		     //['name': 'panelextract', 'requestContentType': 'application/json; charset=UTF-8', 'contentType': 'application/vnd.api+json', 'uri': 'https://www.alarm.com/web/api/systems/systems/${userid}', 'headers': ['ajaxrequestuniquekey': '${afg}'], 'body': '', 'state': ['panelid': 'json:data.relationships.partitions.data.0.id']],
+		     ['name': 'userextract', 'requestContentType': 'application/json; charset=UTF-8', 'contentType': 'application/vnd.api+json', 'uri': 'https://www.alarm.com/web/api/systems/availableSystemItems', 'headers': ['ajaxrequestuniquekey': '${afg}'], 'body': '', 'state': ['userid': 'json:data.0.id']],
+		     ['name': 'panelextract', 'requestContentType': 'application/json; charset=UTF-8', 'contentType': 'application/vnd.api+json', 'uri': 'https://www.alarm.com/web/api/systems/systems/${userid}', 'headers': ['ajaxrequestuniquekey': '${afg}'], 'body': '', 'state': ['panelid': 'json:data.relationships.partitions.data.0.id']],
 			 ['name': 'idextract', 'uri': 'https://www.alarm.com/web/History/EventHistory.aspx', 'state': ['dataunit': 'ctl00__page_html.data-unit-id', 'extension': 'ctl00_phBody_ddlDevice.optionvalue#Panel', 'afg':'cookie:afg']],			 
 		     ['name': command, 'method': apiMethod, 'requestContentType': 'application/json; charset=UTF-8', 'contentType': 'application/vnd.api+json', 'uri': 'https://www.alarm.com/web/api/devices/partitions/'+urlext+COMMAND.params.command, 'headers': ['ajaxrequestuniquekey': '${afg}'], 'body': postBody, 'state': ['status': ~/(?ms)"state": (\d)\,/]]
 	]
 	if(state.panelid) {
 		STEPS.remove(2)
-		//STEPS.remove(2)
+		STEPS.remove(2)
+		STEPS.remove(2)
 	}
 	return STEPS.reverse()
 }
