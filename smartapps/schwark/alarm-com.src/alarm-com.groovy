@@ -132,7 +132,7 @@ private def getRecipe(command, silent=true, nodelay=false, bypass=false) {
 				'ctl00$ContentPlaceHolder1$loginform$txtUserName': settings.username,
 			  	'txtPassword': settings.password,
 			  	'ctl00$ContentPlaceHolder1$loginform$signInButton':'Login'
-			 ], 'state': ['afg':'cookie:afg'], 'nofollow': true, 'cookies': ['twoFactorAuthenticationSkipped-6908106=true']],
+			 ], 'state': ['afg':'cookie:afg'], 'nofollow': true, 'cookies': ['twoFactorAuthenticationSkipped-6908106=true'], 'retry': 'system-install'],
 		     ['name': 'userextract', 'requestContentType': 'application/json; charset=UTF-8', 'contentType': 'application/vnd.api+json', 'uri': 'https://www.alarm.com/web/api/systems/availableSystemItems', 'headers': ['ajaxrequestuniquekey': '${afg}'], 'body': '', 'state': ['userid': 'json:data.0.id']],
 		     ['name': 'panelextract', 'requestContentType': 'application/json; charset=UTF-8', 'contentType': 'application/vnd.api+json', 'uri': 'https://www.alarm.com/web/api/systems/systems/${userid}', 'headers': ['ajaxrequestuniquekey': '${afg}'], 'body': '', 'state': ['panelid': 'json:data.relationships.partitions.data.0.id']],
 			 ['name': 'idextract', 'uri': 'https://www.alarm.com/web/History/EventHistory.aspx', 'state': ['dataunit': 'ctl00__page_html.data-unit-id', 'extension': 'ctl00_phBody_ddlDevice.optionvalue#Panel', 'afg':'cookie:afg']],			 
@@ -184,10 +184,18 @@ def runCommand(command, silent, nodelay, bypass=false, browserSession=[:]) {
 	browserSession.vars = ['__PREVIOUSPAGE':'', '__VIEWSTATEGENERATOR':'','__EVENTVALIDATION':'','__VIEWSTATE':'']
 
 	log.debug("runCommand got command ${command} with silent ${silent} and nodelay of ${nodelay} and bypass of ${bypass}")
-	def recipes = getRecipe(command, silent, nodelay, bypass)
-	navigateUrl(recipes, browserSession)
-	updateStatus(command, (browserSession.state && browserSession.state.status) ? browserSession.state.status : null, browserSession)
-
+	def numTries = 1
+	while (numTries < 5) {
+		try {
+			def recipes = getRecipe(command, silent, nodelay, bypass)
+			navigateUrl(recipes, browserSession)
+			updateStatus(command, (browserSession.state && browserSession.state.status) ? browserSession.state.status : null, browserSession)
+			numTries = 5
+		} catch(IllegalStateException e) {
+			log.debug("found a retry state; trying again - try # ${numTries}")
+			numTries += 1
+		}
+	}
 	return browserSession
 }
 
@@ -361,7 +369,11 @@ private def navigateUrl(recipes, browserSession) {
 	    	response.headerIterator('Location').each {
     			def location = params.uri.toURI().resolve(it.value).toString()
     			log.debug "redirecting on 302 to: ${location}"
-    			recipes.push(['name': "${params.name} redirect", 'uri': location, 'expect': params.expect, 'processor': params.processor, 'state': params.state])
+				if(params.retry && location.contains(params.retry)) {
+					log.debug("hit the retry needed url ${params.retry} - going to retry")
+					throw new IllegalStateException()
+				} else 
+	    			recipes.push(['name': "${params.name} redirect", 'uri': location, 'expect': params.expect, 'processor': params.processor, 'state': params.state])
     		}
 	    }
 
@@ -372,6 +384,8 @@ private def navigateUrl(recipes, browserSession) {
 
 	    //return browserSession
     }
+
+	def retryNeeded = false
 
 	if(params.uri) {
 		if(!browserSession.state) browserSession.state = [:]
@@ -418,9 +432,15 @@ private def navigateUrl(recipes, browserSession) {
 				//log.debug("getquery:${params.uri}::${params.query}")
 	    		httpGet(params,success)
    			}
-		} catch (e) {
+		} catch (IllegalStateException e) {
+			retryNeeded = true
+		} catch (Exception e) {
     			log.error "something went wrong: $e"
 		}
+	}
+
+	if(retryNeeded) {
+		throw new IllegalStateException()
 	}
 
 	return browserSession
