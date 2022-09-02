@@ -1,5 +1,8 @@
 # SmartThings Integration with alarm.com
 
+**DEPRECATED: Since the whole Groovy thing is going away. Please use [this](https://community.smartthings.com/t/st-edge-smartthings-alarm-com-integration/246934) instead**
+
+
 
 * Login to the IDE with your smartthings username and password
 ** North American users: https://graph-na02-useast1.api.smartthings.com/430
